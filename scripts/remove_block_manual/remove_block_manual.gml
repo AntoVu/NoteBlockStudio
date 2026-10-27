@@ -1,6 +1,6 @@
 function remove_block_manual(argument0, argument1) {
 	// remove_block_manual(x, y)
-	var xx, yy, ins, key, a, b, vel, pan, pit, ani;
+	var xx, yy, ins, key, a, b, vel, pan, pit, ani, dur;
 	xx = argument0
 	yy = argument1
 
@@ -11,6 +11,7 @@ function remove_block_manual(argument0, argument1) {
 	vel = song_vel[xx, yy]
 	pan = song_pan[xx, yy]
 	pit = song_pit[xx, yy]
+	dur = note_dur_get(xx, yy)
 	ins.num_blocks--
 	if (song_key[xx, yy] < 33 || song_key[xx, yy] > 57) block_outside -= 1
 	if (ins.user) block_custom -= 1
@@ -20,6 +21,7 @@ function remove_block_manual(argument0, argument1) {
 	song_vel[xx, yy] = 0
 	song_pan[xx, yy] = 0
 	song_pit[xx, yy] = 0
+	note_dur_set(xx, yy, 0)
 	song_played[xx, yy] = 0
 	song_added[xx, yy] = 0
 	colamount[xx] -= 1
@@ -60,7 +62,7 @@ function remove_block_manual(argument0, argument1) {
 	        }
 	    }
 	}
-	history_set(h_removeblock, xx, yy, ins, key, vel, pan, pit)
+	history_set(h_removeblock, xx, yy, ins, key, vel, pan, pit, dur)
 	if (theme = 3 && remove_effect) {
 		ani = create(obj_removeeff)
 		ani.xn = xx - starta

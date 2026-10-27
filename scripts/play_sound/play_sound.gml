@@ -5,7 +5,8 @@
 /// @param  volume
 /// @param  pan
 /// @param  fine pitch
-function play_sound(argument0, argument1, argument2, argument3, argument4) {
+/// @param  [sustain] seconds to hold the note for (0 = play normally)
+function play_sound(argument0, argument1, argument2, argument3, argument4, sustain = 0) {
 	
 	if (os_type != os_macosx) {
 
@@ -25,13 +26,18 @@ function play_sound(argument0, argument1, argument2, argument3, argument4) {
 	if (realstereo = 0) audio_emitter_position(emitter,pan,0,0)
 	else audio_emitter_position(emitter,100,0,0)
 
-	audio_play_sound_on(emitter,ins.sound, 0, 0)
+	// Sustained note: loop the sound while the note is held (only if it's longer than the sound itself)
+	var natural_length = audio_sound_length(ins.sound) / (1 + 3 * (os_type = os_windows)) * (1/audio_emitter_get_pitch(emitter))
+	var do_sustain = (sustain > natural_length)
+	var inst = audio_play_sound_on(emitter,ins.sound, do_sustain, 0)
 	sounds++
+	if (do_sustain) ds_list_add(sustained_sounds, [inst, get_timer() + sustain * 1000000, false])
 
 	//Schedule emitter to be deleted from memory
 	newemitter = ds_list_create()
 	ds_list_add(newemitter,emitter) //store emitter id
 	var length = audio_sound_length(ins.sound) / (1 + 3 * (os_type = os_windows)) * (1/audio_emitter_get_pitch(emitter))
+	if (do_sustain) length = sustain + 0.5
 	ds_list_add(newemitter, (get_timer() + length * 1000000)) //store moment at which the emitter should be removed
 	ds_list_add(emitters_to_remove, newemitter)
 	
@@ -53,7 +59,9 @@ function play_sound(argument0, argument1, argument2, argument3, argument4) {
 	var emitter_x = 100
 	if (realstereo = 0) emitter_x = pan
 
-	var soundid = audio_play_sound_at(ins.sound, emitter_x, 0, 0, 100, 300, 1, false, 1)
+	var natural_length_mac = audio_sound_length(ins.sound) / (1 + 3 * (os_type = os_windows)) * (1/emitter_pitch)
+	var do_sustain_mac = (sustain > natural_length_mac)
+	var soundid = audio_play_sound_at(ins.sound, emitter_x, 0, 0, 100, 300, 1, do_sustain_mac, 1)
 	audio_sound_gain(soundid, emitter_gain, 0)
 	audio_sound_pitch(soundid, emitter_pitch)
 	sounds++
@@ -62,6 +70,7 @@ function play_sound(argument0, argument1, argument2, argument3, argument4) {
 	newemitter = ds_list_create()
 	ds_list_add(newemitter,soundid) //store emitter id
 	var length = audio_sound_length(ins.sound) / (1 + 3 * (os_type = os_windows)) * (1/emitter_pitch)
+	if (do_sustain_mac) length = sustain
 	ds_list_add(newemitter, (get_timer() + length * 1000000)) //store moment at which the emitter should be removed
 	ds_list_add(emitters_to_remove, newemitter)
 	

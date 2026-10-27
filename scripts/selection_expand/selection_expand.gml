@@ -1,6 +1,6 @@
 function selection_expand() {
 	// selection_expand()
-	var str, nw, temp_colfirst, temp_collast, temp_exists, temp_ins, temp_key, temp_vel, temp_pan, temp_pit, temp_played, sa;
+	var str, nw, temp_colfirst, temp_collast, temp_exists, temp_ins, temp_key, temp_vel, temp_pan, temp_pit, temp_played, temp_dur, sa;
 	str = selection_code
 	if (selected = 0) return 0
 	nw = selection_l * 2
@@ -15,6 +15,7 @@ function selection_expand() {
 	                temp_vel[a, b] = selection_vel[a, b]
 	                temp_pan[a, b] = selection_pan[a, b]
 	                temp_pit[a, b] = selection_pit[a, b]
+	                temp_dur[a, b] = sel_dur_get(a, b)
 	                temp_played[a, b] = selection_played[a, b]
 	                selection_exists[a, b] = 0
 	                selection_ins[a, b] = 0
@@ -22,6 +23,7 @@ function selection_expand() {
 	                selection_vel[a, b] = 0
 	                selection_pan[a, b] = 0
 	                selection_pit[a, b] = 0
+	                sel_dur_set(a, b, 0)
 	                selection_played[a, b] = 0
 	            } else {
 	                temp_exists[a, b] = 0
@@ -44,6 +46,7 @@ function selection_expand() {
 	                selection_vel[sa, b] = temp_vel[a, b]
 	                selection_pan[sa, b] = temp_pan[a, b]
 	                selection_pit[sa, b] = temp_pit[a, b]
+	                sel_dur_set(sa, b, temp_dur[a, b] * 2)
 	                selection_played[sa, b] = temp_played[a, b]
 	            }
 	        }

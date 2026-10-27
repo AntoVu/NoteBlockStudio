@@ -68,7 +68,7 @@ function selection_add() {
 	    selection_extend_length(al)
 		selection_extend_height(ah)
 	    if (x1 < selection_x || y1 < selection_y) { // Move blocks
-	        var temp_colfirst, temp_collast, temp_exists, temp_ins, temp_key, temp_vel, temp_pan, temp_pit, temp_played;
+	        var temp_colfirst, temp_collast, temp_exists, temp_ins, temp_key, temp_vel, temp_pan, temp_pit, temp_played, temp_dur;
 	        for (a = 0; a < selection_l; a += 1) {
 	            if (selection_colfirst[a] > -1) {
 	                for (b = selection_colfirst[a]; b <= selection_collast[a]; b += 1) {
@@ -79,6 +79,7 @@ function selection_add() {
 	                        temp_vel[a, b] = selection_vel[a, b]
 	                        temp_pan[a, b] = selection_pan[a, b]
 	                        temp_pit[a, b] = selection_pit[a, b]
+	                        temp_dur[a, b] = sel_dur_get(a, b)
 	                        temp_played[a, b] = selection_played[a, b]
 	                        selection_exists[a, b] = 0
 	                        selection_ins[a, b] = 0
@@ -86,6 +87,7 @@ function selection_add() {
 	                        selection_vel[a, b] = 0
 	                        selection_pan[a, b] = 0
 	                        selection_pit[a, b] = 0
+	                        sel_dur_set(a, b, 0)
 	                        selection_played[a, b] = 0
 	                    } else {
 	                        temp_exists[a, b] = 0
@@ -109,6 +111,7 @@ function selection_add() {
 	                        selection_vel[sa, sb] = temp_vel[a, b]
 	                        selection_pan[sa, sb] = temp_pan[a, b]
 	                        selection_pit[sa, sb] = temp_pit[a, b]
+	                        sel_dur_set(sa, sb, temp_dur[a, b])
 	                        selection_played[sa, sb] = temp_played[a, b]
 	                    }
 	                }
@@ -141,6 +144,7 @@ function selection_add() {
 	                    selection_vel[sa, sb] = song_vel[a, b]
 	                    selection_pan[sa, sb] = song_pan[a, b]
 	                    selection_pit[sa, sb] = song_pit[a, b]
+	                    sel_dur_set(sa, sb, note_dur_get(a, b))
 	                    selection_played[sa, sb] = 0
 	                    if (!copy) {
 	                        remove_block_select(a, b)

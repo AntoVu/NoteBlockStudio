@@ -278,7 +278,22 @@ function control_draw() {
 	    if (select = 0 && selected = 0 && selbx < arraylength && selby < arrayheight) {
 	        exist = song_exists[selbx, selby]
 	        if (exist && cursmarker = 0) {
-	            if (changepitch && (mouse_wheel_up() || mouse_wheel_down())) {
+	            if (keyboard_check(vk_alt) && (mouse_wheel_up() || mouse_wheel_down())) {
+					// Alt + scroll over a note: stretch or shrink it (Alt + Shift: 4 ticks at a time)
+					var ddiff = mouse_wheel_up() - mouse_wheel_down()
+					if (keyboard_check(vk_shift)) ddiff *= 4
+					var odur = note_dur_get(selbx, selby)
+					var ndur = max(0, odur + ddiff)
+					if (odur <= 1 && ddiff > 0) ndur = max(2, ndur) // A 1-tick note looks and sounds like a normal one, so skip it
+					if (ndur <= 1) ndur = 0
+					if (ndur != odur) {
+						note_dur_set(selbx, selby, ndur)
+						history_set(h_changedur, selbx, selby, ndur, odur)
+						changed = 1
+						if (ndur = 0) set_msg(condstr(language != 1, "Note length => normal", "音符时长 => 默认"))
+						else set_msg(condstr(language != 1, "Note length => " + string(ndur) + " ticks", "音符时长 => " + string(ndur) + " 刻"))
+					}
+	            } else if (changepitch && (mouse_wheel_up() || mouse_wheel_down())) {
 					var diff = mouse_wheel_up() - mouse_wheel_down()
 					// If shift is not pressed, do increments of a single key or 10 steps at once.
 					if (!keyboard_check(vk_shift) && (editmode != m_key)) {
@@ -307,7 +322,7 @@ function control_draw() {
 	        }
 	    }
 	}
-	if (mousewheel = 1 && window = 0 && (exist = 0 || changepitch = 0) && !isplayer && !volume_scroll) {
+	if (mousewheel = 1 && window = 0 && (exist = 0 || changepitch = 0) && !(exist && keyboard_check(vk_alt)) && !isplayer && !volume_scroll) {
 	    var insindex = ds_list_find_index(instrument_list, instrument)
 	    if (mouse_wheel_down() && insindex > 0) {
 	        insindex--
@@ -326,7 +341,7 @@ function control_draw() {
 	        play_sound(instrument, selected_key, 100 ,100, 0)
 	    }
 	}
-	if (mousewheel = 2 && window = 0 && (exist = 0 || changepitch = 0) && !isplayer && !volume_scroll) {
+	if (mousewheel = 2 && window = 0 && (exist = 0 || changepitch = 0) && !(exist && keyboard_check(vk_alt)) && !isplayer && !volume_scroll) {
 	    if (mouse_wheel_down() && selected_key > 0) {
 	        selected_key -= 1
 			selected_vel = 100
@@ -374,6 +389,24 @@ function control_draw() {
 	}
 	note_offset = floor(((marker_pos - floor(marker_pos + 0.5 * !isplayer)) * 32) + 0.5) * ((playing && marker_follow && marker_pagebypage = 2 && (marker_pos - floor(totalcols / 2 + 0.5) < enda + 1 && marker_pos - floor(totalcols / 2 + 0.5) > 0)) || isplayer)
 	if (!isplayer) {
+	// Tails of sustained notes (drawn first so the note blocks appear on top)
+	if (song_max_dur > 1 && !blackout) {
+		var tail_clip_l = x1 + 2
+		var tail_clip_r = x1 + 2 + 32 * totalcols
+		for (var ta = max(0, starta - song_max_dur); ta < starta + totalcols && ta <= enda; ta++) {
+			if (ta < arraylength && colamount[ta] > 0) {
+				for (var tb = max(colfirst[ta], startb); tb <= collast[ta] && tb < startb + totalrows; tb++) {
+					if (song_exists[ta, tb]) {
+						var tdur = note_dur_get(ta, tb)
+						if (tdur > 1 && ta + tdur > starta) {
+							var tsel = (selbx = ta && selby = tb && select = 0 && window = 0)
+							draw_note_tail(x1 + 2 + 32 * (ta - starta) - note_offset, y1 + 34 + 32 * (tb - startb), tdur, 0.5 * (song_vel[ta, tb] / 100) + 0.5, tsel, tail_clip_l, tail_clip_r)
+						}
+					}
+				}
+			}
+		}
+	}
 	var tempo_changer_display_queue = []
 	for (a = 0; a < totalcols; a += 1) {
 		if (!blackout) {
@@ -501,7 +534,7 @@ function control_draw() {
 		                    if (current_time - song_added[xx, b] < 1000) a = 0
 		                }
 		                if (a) {
-		                    if (song_ins[xx, b].loaded) play_sound(song_ins[xx, b], song_key[xx, b], c , d, e)
+		                    if (song_ins[xx, b].loaded) play_sound(song_ins[xx, b], song_key[xx, b], c , d, e, ticks_to_seconds(note_dur_get(xx, b)))
 							if (instrument_list[| ds_list_find_index(instrument_list, song_ins[xx, b])].name = "Tempo Changer") tempo = floor(abs(e)) / 15
 							if (instrument_list[| ds_list_find_index(instrument_list, song_ins[xx, b])].name = "Toggle Rainbow") {rainbowtoggle = !rainbowtoggle draw_accent_init()}
 		                    if (song_ins[xx, b].press || isplayer) key_played[song_key[xx, b]] = current_time
@@ -520,7 +553,12 @@ function control_draw() {
 	}
 
 	// Draw selection
-	if (selected > 0) selection_draw(x1 + 2 - note_offset, y1 + 34, totalcols, totalrows)
+	if (selected > 0) {
+		// Visible grid edges, so selection_draw can clip the tails of held notes
+		tail_clip_left = x1 + 2
+		tail_clip_right = x1 + 2 + 32 * totalcols
+		selection_draw(x1 + 2 - note_offset, y1 + 34, totalcols, totalrows)
+	}
 	marker_prevpos = marker_pos
 	if (window = w_dragselection) {
 	    if (!mouse_check_button(mb_left)) {
@@ -658,7 +696,8 @@ function control_draw() {
 											"Ctrl+Shift+Y$Set pitch...|"+
 											"Ctrl+Shift+U$Reset all properties|"+
 											"/|-|"+
-	                                        inactive(selected = 0) + "Transpose notes outside octave range|")
+	                                        inactive(selected = 0) + "Transpose notes outside octave range|"+
+	                                        inactive(selected = 0) + "Ctrl+Shift+L$Set note length...|")
 	            else menu = show_menu_ext("editext", mouse_x, mouse_y, inactive(selected = 0) + icon(icons.COPY - (selected = 0)) + "Ctrl+C$复制|"+
 	                                      inactive(selected = 0) + icon(icons.CUT - (selected = 0)) + "Ctrl+X$剪切|"+
 	                                      inactive(selection_copied = "") + icon(icons.PASTE - (selection_copied = "")) + "Ctrl+V$粘贴|"+
@@ -696,7 +735,8 @@ function control_draw() {
 											"Ctrl+Shift+Y$设定音高......|"+
 											"Ctrl+Shift+U$重置所有属性|"+
 											"/|-|"+
-	                                        inactive(selected = 0) + "转换所有超出八度范围的音符|")
+	                                        inactive(selected = 0) + "转换所有超出八度范围的音符|"+
+	                                        inactive(selected = 0) + "Ctrl+Shift+L$设置音符时长......|")
 	            menu.menuc = selbx
 	            menu.pastex = selbx
 	            menu.pastey = selby
@@ -917,6 +957,10 @@ function control_draw() {
 				if (keyboard_check_pressed(ord("U"))&& keyboard_check(vk_shift)) {
 					playing = 0 
 					macro_reset()
+					}
+				if (keyboard_check_pressed(ord("L"))&& keyboard_check(vk_shift)) {
+					playing = 0 
+					window = w_setduration
 					}
 			}
 		}
@@ -1622,7 +1666,8 @@ function control_draw() {
 		                                inactive(selected = 0 || selection_l = 0) + "Expand selection|"+
 		                                inactive(selected = 0 || selection_l = 0) + "Compress selection|"+
 		                                inactive(selected = 0 || selection_l = 0) + "Macros...|\\||"+ "Tremolo...|"+ "Stereo...|"+ "Arpeggio...|"+ "Portamento...|"+ "Vibrato|"+ "Stagger...|"+ "Chorus|"+ "Volume LFO|"+ "Fade in|"+ "Fade out|"+ "Replace key|"+ "Set velocity...|"+ "Set panning...|"+ "Set pitch...|"+ "Reset all properties|"+ "/|-|"+
-		                                inactive(selected = 0) + "Transpose notes outside octave range")
+		                                inactive(selected = 0) + "Transpose notes outside octave range|"+
+		                                inactive(selected = 0) + "Ctrl+Shift+L$Set note length...")
 		}
 		if (draw_tab("Settings")) {
 		    str = ""
@@ -1711,7 +1756,8 @@ function control_draw() {
 		                                inactive(selected = 0 || selection_l = 0) + "扩展选区|"+
 		                                inactive(selected = 0 || selection_l = 0) + "压缩选区|"+
 		                                inactive(selected = 0 || selection_l = 0) + "快捷键......|\\||"+ "Tremolo...|"+ "Stereo...|"+ "Arpeggio...|"+ "Portamento...|"+ "Vibrato|"+ "Stagger...|"+ "Chorus|"+ "Volume LFO|"+ "淡入|"+ "淡出|"+ "替换音|"+ "设定音量......|"+ "设定声道......|"+ "设定音高......|"+ "重置所有属性|"+ "/|-|"+
-		                                inactive(selected = 0) + "转换所有超出八度范围的音符")
+		                                inactive(selected = 0) + "转换所有超出八度范围的音符|"+
+		                                inactive(selected = 0) + "Ctrl+Shift+L$设置音符时长......")
 		}
 		if (draw_tab("设置")) {
 		    str = ""

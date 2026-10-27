@@ -48,6 +48,7 @@ function selection_invert() {
 	                    selection_vel[a, b] = vel
 	                    selection_pan[a, b] = pan
 	                    selection_pit[a, b] = pit
+	                    sel_dur_set(a, b, note_dur_get(a, b))
 	                    selection_played[a, b] = 0
 	                    if (selection_colfirst[a] = -1) selection_colfirst[a] = b
 	                    selection_collast[a] = max(selection_collast[a], b)

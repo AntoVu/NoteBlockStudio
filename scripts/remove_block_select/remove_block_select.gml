@@ -16,6 +16,7 @@ function remove_block_select(argument0, argument1) {
 	song_vel[@ xx, yy] = 0
 	song_pan[@ xx, yy] = 0
 	song_pit[@ xx, yy] = 0
+	note_dur_set(xx, yy, 0)
 	song_played[@ xx, yy] = 0
 	song_added[@ xx, yy] = 0
 	colamount[@ xx] -= 1

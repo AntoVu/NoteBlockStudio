@@ -30,6 +30,10 @@ function action_redo() {
 			remove_block(arg0, arg1)
 			break
 		}
+		case h_changedur: {
+			if (arg0 < arraylength && arg1 < arrayheight && song_exists[arg0, arg1]) note_dur_set(arg0, arg1, arg2)
+			break
+		}
 		case h_changeblock: {
 			change_block(arg0, arg1, arg2, arg3, arg4, arg5, arg6)
 			break

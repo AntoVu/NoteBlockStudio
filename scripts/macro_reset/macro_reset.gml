@@ -9,6 +9,7 @@ function macro_reset() {
 					selection_vel[a, b] = 100
 					selection_pan[a, b] = 100
 					selection_pit[a, b] = 0
+					sel_dur_set(a, b, 0)
 	            }
 	        }
 	    }

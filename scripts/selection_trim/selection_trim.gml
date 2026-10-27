@@ -1,7 +1,7 @@
 function selection_trim() {
 	// selection_trim()
 	// Removes unneccesary space from selection.
-	var x1, y1, x2, y2, a, b, temp_colfirst, temp_collast, temp_exists, temp_ins, temp_vel, temp_pan, temp_key, temp_pit, temp_played;
+	var x1, y1, x2, y2, a, b, temp_colfirst, temp_collast, temp_exists, temp_ins, temp_vel, temp_pan, temp_key, temp_pit, temp_played, temp_dur;
 	for (x1 = 0; x1 < selection_l; x1 += 1) {
 	    if (selection_colfirst[x1] > -1) break
 	}
@@ -29,6 +29,7 @@ function selection_trim() {
 	                    temp_vel[a - x1, b - y1] = selection_vel[a, b]
 	                    temp_pan[a - x1, b - y1] = selection_pan[a, b]
 	                    temp_pit[a - x1, b - y1] = selection_pit[a, b]
+	                    temp_dur[a - x1, b - y1] = sel_dur_get(a, b)
 	                    temp_played[a - x1, b - y1] = selection_played[a, b]
 	                    selection_exists[a, b] = 0
 	                    selection_ins[a, b] = 0
@@ -36,6 +37,7 @@ function selection_trim() {
 	                    selection_vel[a, b] = 0
 	                    selection_pan[a, b] = 0
 	                    selection_pit[a, b] = 0
+	                    sel_dur_set(a, b, 0)
 	                    selection_played[a, b] = 0
 	                } else {
 	                    temp_exists[a - x1, b - y1] = 0
@@ -57,6 +59,7 @@ function selection_trim() {
 	                    selection_vel[a, b] = temp_vel[a, b]
 	                    selection_pan[a, b] = temp_pan[a, b]
 	                    selection_pit[a, b] = temp_pit[a, b]
+	                    sel_dur_set(a, b, temp_dur[a, b])
 	                    selection_played[a, b] = temp_played[a, b]
 	                }
 	            }

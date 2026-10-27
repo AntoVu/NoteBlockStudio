@@ -135,7 +135,14 @@ function import_midi() {
 	            // Add block, go lower if failed
 	            a = 0
 	            while (1) {
-	                if (add_block(pos, yy, instrument_list[| ins], note, vel, 100, 0)) break
+	                if (add_block(pos, yy, instrument_list[| ins], note, vel, 100, 0)) {
+	                    // Keep the note's length (not for percussion)
+	                    if (w_midi_durations && channel != 9) {
+	                        var mlen = round(dur_get(midi_eventlen, t, e) / deltapertick)
+	                        if (mlen >= 2) note_dur_set(pos, yy, mlen)
+	                    }
+	                    break
+	                }
 	                yy += 1
 	                a += 1
 	                if (a >= w_midi_maxheight && w_midi_maxheight < 20) break

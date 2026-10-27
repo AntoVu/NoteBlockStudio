@@ -6,6 +6,7 @@ function selection_load(argument0, argument1, argument2, argument3) {
 	yy = argument1
 	str = try_decompress_selection(argument2)
 	selection_place(argument3)
+	str = dur_code_split(str) // Separate note durations from the code
 	if (str = "") return 0
 	ca = 0
 	h = 0
@@ -48,6 +49,7 @@ function selection_load(argument0, argument1, argument2, argument3) {
 			val = real(buffer_substr_copy(str_buffer, prev_pipe_pos + 1, pipe_pos - prev_pipe_pos - 1, val_buffer))
 			prev_pipe_pos = pipe_pos
 			selection_pit[ca, cb] = val
+			sel_dur_set(ca, cb, 0)
 	        selected += 1
 	        if (selection_colfirst[ca] = -1) selection_colfirst[ca] = cb
 	        selection_collast[ca] = cb
@@ -62,6 +64,7 @@ function selection_load(argument0, argument1, argument2, argument3) {
 	selection_y = yy
 	selection_l = ca + 1
 	selection_h = h + 1
+	dur_pending_apply_selection()
 	selection_code_update()
 	selection_expand_layers()
 }

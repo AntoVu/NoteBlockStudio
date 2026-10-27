@@ -84,6 +84,7 @@ function load_settings() {
 	w_midi_name_patch =   ini_read_real(  "midi_import", "name_patch",      w_midi_name_patch)
 	w_midi_maxheight =    ini_read_real(  "midi_import", "maxheight",       w_midi_maxheight)
 	w_midi_vel =          ini_read_real(  "midi_import", "enable_velocity", w_midi_vel)
+	w_midi_durations =    ini_read_real(  "midi_import", "note_lengths",    w_midi_durations)
 	w_midi_tempo =        ini_read_real(  "midi_import", "tempo",           w_midi_tempo)
 	w_midi_octave =       ini_read_real(  "midi_import", "octave",          w_midi_octave)
 	w_midi_precision =    ini_read_real(  "midi_import", "precision",       w_midi_precision)

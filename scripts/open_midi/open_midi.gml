@@ -42,6 +42,7 @@ function open_midi(argument0) {
 	    r = buffer_read_int_be()
 	    trackend = buffer_tell(buffer) + r
 	    p = 0
+	    var open_notes = ds_map_create() // "channel:note" -> event index of the note that's still held
 	    while(buffer_tell(buffer) < trackend) { // Loop through track
 	        // Delta time
 	        delta = buffer_read_varlen()
@@ -149,8 +150,10 @@ function open_midi(argument0) {
 	                lastchannel = channel
 	            }
 	            switch (eventtype) {
-	                case $8: { // Note off, useless
-	                    repeat (2) buffer_read_byte()
+	                case $8: { // Note off: store how long the note was held
+	                    var off_note = buffer_read_byte()
+	                    buffer_read_byte()
+	                    midi_note_release(open_notes, t, channel, off_note, p)
 	                    break
 	                }
 	                case $9: { // Note on
@@ -158,8 +161,13 @@ function open_midi(argument0) {
 	                    note = buffer_read_byte()
 	                    vel = buffer_read_byte()
                     
-	                    if (vel > 0)
-	                        midi_add_note(channel, t, p, note, vel) //-21
+	                    if (vel > 0) {
+	                        midi_note_release(open_notes, t, channel, note, p) // Re-triggered before its note-off
+	                        var ev = midi_add_note(channel, t, p, note, vel) //-21
+	                        if (ev >= 0) open_notes[? string(channel) + ":" + string(note)] = ev
+	                    } else {
+	                        midi_note_release(open_notes, t, channel, note, p) // Note on with velocity 0 = note off
+	                    }
 	                    break
 	                }
 	                case $A: { // Note aftertouch (useless)
@@ -184,6 +192,7 @@ function open_midi(argument0) {
 	                }
 	                default: { // Unknown
 	                    message("Error loading MIDI file:\n\nUnknown MIDI event", "Error")
+	                    ds_map_destroy(open_notes)
 	                    reset_midi()
 	                    buffer_delete(buffer)
 	                    return 0
@@ -192,6 +201,7 @@ function open_midi(argument0) {
 	            }
 	        }
 	    }
+	    ds_map_destroy(open_notes)
 	}
 	/*var str;
 	str = ""

@@ -44,6 +44,7 @@ function draw_debug_overlay(){
 		case w_portamento: cwindow = "w_portamento" break
 		case w_saveoptions: cwindow = "w_saveoptions" break
 		case w_setvelocity: cwindow = "w_setvelocity" break
+		case w_setduration: cwindow = "w_setduration" break
 		case w_setpanning: cwindow = "w_setpanning" break
 		case w_setpitch: cwindow = "w_setpitch" break
 		case w_settempo: cwindow = "w_settempo" break

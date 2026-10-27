@@ -110,6 +110,7 @@ function menu_click(argument0) {
 	            if (language != 1) {if (question("Transpose selected notes so that they fall within Minecraft's 2 octaves?", "Transpose notes")) selection_transpose()}
 	            else {if (question("转换音符使其在 Minecraft 的 2 八度以内吗？", "转换音符")) selection_transpose()}
 	        }
+	        if (sel = 37 + insoffset) {playing = 0 window = w_setduration}
 	        break
 	    }
 	    case "editext": {
@@ -164,6 +165,7 @@ function menu_click(argument0) {
 	            if (language != 1) {if (question("Transpose selected notes so that they fall within Minecraft's 2 octaves?", "Transpose notes")) selection_transpose()}
 	            else {if (question("转换音符使其在 Minecraft 的 2 八度以内吗？", "转换音符")) selection_transpose()}
 	        }
+	        if (sel = 37 + insoffset) {playing = 0 window = w_setduration}
 	        break
 	    }
 	    case "settings": {

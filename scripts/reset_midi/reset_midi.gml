@@ -2,6 +2,7 @@ function reset_midi() {
 	// reset_midi()
 	var a, b;
 	midi_copyright = ""
+	midi_eventlen = [] // Note lengths (see note_durations)
 	midi_tempo = 1
 	midi_micsecqn = 0
 	midi_minpos = -1

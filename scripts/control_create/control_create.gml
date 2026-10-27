@@ -229,6 +229,11 @@ function control_create() {
 	song_vel[0, 0] = 0
 	song_pan[0, 0] = 0
 	song_pit[0, 0] = 0
+	song_dur = [] // Note durations (see note_durations)
+	song_max_dur = 0
+	setdur = 8
+	setdur_mode = 0
+	global.dur_pending = []
 	song_played[0, 0] = 0
 	song_added[0, 0] = 0
 	block_outside = 0
@@ -283,6 +288,9 @@ function control_create() {
 	selection_vel[0, 0] = 0
 	selection_pan[0, 0] = 0
 	selection_pit[0, 0] = 0
+	selection_dur = []
+	tail_clip_left = 0
+	tail_clip_right = 0
 	selection_played[0, 0] = 0
 	selection_arraylength = 0
 	selection_arrayheight = 0
@@ -419,6 +427,7 @@ function control_create() {
 	w_midi_tempo = 1
 	w_midi_octave = 0
 	w_midi_vel = 1
+	w_midi_durations = 1 // Keep note lengths from MIDI files
 	w_midi_precision = 1
 	w_midi_tempo_changer = 0
 	w_isdragging = 0
@@ -492,6 +501,7 @@ function control_create() {
 	first_custom_index = ds_list_size(instrument_list)
 	user_instruments = 0
 	emitters_to_remove = ds_list_create()
+	sustained_sounds = ds_list_create() // [sound instance, stop time (us), fading]
 
 	// Initialize instruments
 	str = ""

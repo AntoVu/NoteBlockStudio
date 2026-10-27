@@ -57,6 +57,8 @@ function region_code_get(argument0, argument1, argument2, argument3) {
 	if (am == 0) {
 		str = ""
 	} else {
+		var dur_suffix = dur_code_suffix_region(x1, y1, x2, y2)
+		if (dur_suffix != "") buffer_write(str_buffer, buffer_text, dur_suffix)
 		buffer_seek(str_buffer, buffer_seek_start, 0)
 		str = try_compress_selection(buffer_read(str_buffer, buffer_string))
 	}

@@ -50,6 +50,10 @@ function selection_code_update() {
 	    ca += 1
 	}
 
+	// Note durations (only written if the selection has sustained notes)
+	var dur_suffix = dur_code_suffix_selection()
+	if (dur_suffix != "") buffer_write(str_buffer, buffer_text, dur_suffix)
+
 	buffer_seek(str_buffer, buffer_seek_start, 0)
 	selection_code = try_compress_selection(buffer_read(str_buffer, buffer_string))
 	buffer_delete(str_buffer)

@@ -23,6 +23,9 @@ function reset() {
 	        song_added[a, b] = 0
 	    }
 	}
+	song_dur = []
+	song_max_dur = 0
+	selection_dur = []
 
 	// File
 	filename = ""

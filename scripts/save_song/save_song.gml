@@ -115,6 +115,8 @@ function save_song() {
 	        buffer_write_byte(ins.press)
 	    }
 	}
+	// Note durations (extra chunk, ignored by other NBS versions and tools)
+	song_durations_write()
 	buffer_export(buffer, fn)
 	buffer_delete(buffer)
 

@@ -5,8 +5,9 @@ function region_code_load(argument0, argument1, argument2) {
 	var xx, yy, str, ca, cb, val, ins, key, vel, pan, pit;
 	xx = argument0
 	yy = argument1
-	str = try_decompress_selection(argument2)
+	str = dur_code_split(try_decompress_selection(argument2)) // Separate note durations from the code
 	if (str = "") return 0
+	var pend = global.dur_pending
 	ca = 0
 	var str_len = string_length(str)
 	var str_buffer = string_buffer_create(str)
@@ -51,5 +52,7 @@ function region_code_load(argument0, argument1, argument2) {
 	} until (pipe_pos >= str_len)
 	buffer_delete(str_buffer)
 	buffer_delete(val_buffer)
+	global.dur_pending = pend
+	dur_pending_apply_song(xx, yy)
 	
 }

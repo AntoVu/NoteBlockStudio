@@ -51,6 +51,7 @@ function add_block_manual(argument0, argument1, argument2, argument3, argument4,
 	song_vel[xx, yy] = vel
 	song_pan[xx, yy] = pan
 	song_pit[xx, yy] = pit
+	note_dur_set(xx, yy, 0)
 	song_played[xx, yy] = 0
 	song_added[xx, yy] = current_time
 	colamount[xx] += 1

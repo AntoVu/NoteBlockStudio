@@ -37,7 +37,7 @@ function selection_draw(argument0, argument1, argument2, argument3) {
 	                    }
 	                }
 	                if (a) {
-	                    if (selection_ins[xx, b].loaded) play_sound(selection_ins[xx, b], selection_key[xx, b], c , d, e)
+	                    if (selection_ins[xx, b].loaded) play_sound(selection_ins[xx, b], selection_key[xx, b], c , d, e, ticks_to_seconds(sel_dur_get(xx, b)))
 	                    if (selection_ins[xx, b].press) key_played[selection_key[xx, b]] = current_time
 	                    selection_played[xx, b] = current_time
 	                }
@@ -46,6 +46,23 @@ function selection_draw(argument0, argument1, argument2, argument3) {
 	    }
 	}
 
+	// Tails of sustained notes in the selection
+	if (song_max_dur > 1) {
+		var tail_clip_l = tail_clip_left // Set by control_draw
+		var tail_clip_r = tail_clip_right
+		for (var ta = max(0, starta - song_max_dur - selection_x); ta < selection_l && selection_x + ta < starta + w; ta++) {
+			if (selection_colfirst[ta] > -1) {
+				for (var tb = selection_colfirst[ta]; tb <= selection_collast[ta]; tb++) {
+					if (selection_y + tb >= startb && selection_y + tb < startb + h && selection_exists[ta, tb]) {
+						var tdur = sel_dur_get(ta, tb)
+						if (tdur > 1 && selection_x + ta + tdur > starta) {
+							draw_note_tail(xs + (selection_x + ta - starta) * 32, ys + (selection_y + tb - startb) * 32, tdur, 1, true, tail_clip_l, tail_clip_r)
+						}
+					}
+				}
+			}
+		}
+	}
 	if (x1 > starta + w || y1 > startb + h || x2 <= starta || y2 <= startb) return 0 // Outside
 	for (a = max(starta, x1); a < min(starta + w, x2); a += 1) {
 	    sa = a - selection_x

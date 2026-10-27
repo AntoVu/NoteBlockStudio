@@ -1,6 +1,6 @@
 function selection_compress() {
 	// selection_compress()
-	var a, b, str, nw, nh, na, nb, temp_colfirst, temp_collast, temp_exists, temp_ins, temp_key, temp_vel, temp_pan, temp_pit, temp_played;
+	var a, b, str, nw, nh, na, nb, temp_colfirst, temp_collast, temp_exists, temp_ins, temp_key, temp_vel, temp_pan, temp_pit, temp_played, temp_dur;
 	str = selection_code
 	if (selected = 0 || selection_l = 1) return 0
 	nw = 0
@@ -27,6 +27,7 @@ function selection_compress() {
 	                temp_vel[na, nb] = selection_vel[a, b]
 	                temp_pan[na, nb] = selection_pan[a, b]
 	                temp_pit[na, nb] = selection_pit[a, b]
+	                temp_dur[na, nb] = ceil(sel_dur_get(a, b) / 2)
 	                temp_played[na, nb] = selection_played[a, b]
 					selection_exists[a, b] = 0
 	                selection_ins[a, b] = 0
@@ -34,6 +35,7 @@ function selection_compress() {
 	                selection_vel[a, b] = 0
 	                selection_pan[a, b] = 0
 	                selection_pit[a, b] = 0
+	                sel_dur_set(a, b, 0)
 	                selection_played[a, b] = 0
 					
 					if (temp_colfirst[na] == -1) {
@@ -63,6 +65,7 @@ function selection_compress() {
 	                selection_vel[a, b] = temp_vel[a, b]
 	                selection_pan[a, b] = temp_pan[a, b]
 	                selection_pit[a, b] = temp_pit[a, b]
+	                sel_dur_set(a, b, temp_dur[a, b])
 	                selection_played[a, b] = temp_played[a, b]
 	            }
 	        }

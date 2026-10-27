@@ -26,9 +26,17 @@ def main(*args, **kwargs):
     # Convert float arguments to int
     kwargs = convert_to_int(kwargs, ["sample_rate", "channels"])
 
-    import nbswave
+    # Render with support for held (stretched) notes. Songs without note
+    # durations render exactly like before.
+    try:
+        import nbs_sustain
+    except ImportError:
+        import nbswave
 
-    nbswave.render_audio(*args, **kwargs)
+        nbswave.render_audio(*args, **kwargs)
+        return
+
+    nbs_sustain.render_audio(*args, **kwargs)
 
 
 if __name__ == "__main__":

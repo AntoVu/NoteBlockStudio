@@ -8,8 +8,8 @@ function midi_add_note(argument0, argument1, argument2, argument3, argument4) {
 	vel = argument4
 
 	n = midi_trackamount[track]
-	if (n = 31999) return 0
-	if (channel = 9 && (note < 24 || note > 84)) return 0
+	if (n = 31999) return -1
+	if (channel = 9 && (note < 24 || note > 84)) return -1
 
 	if (pos < midi_minpos || midi_minpos = -1) midi_minpos = pos
 	midi_maxpos = max(midi_maxpos, pos)
@@ -17,6 +17,7 @@ function midi_add_note(argument0, argument1, argument2, argument3, argument4) {
 	midi_eventnote[track, n] = note
 	midi_eventvel[track, n ] = vel
 	midi_eventchannel[track, n] = channel
+	midi_eventlen[track, n] = 0 // Note length (MIDI ticks), filled in by the matching note-off
 	midi_trackamount[track] += 1
 	midi_tracklength[track] = max(midi_tracklength[track], pos)
 	midi_channels = max(midi_channels, channel)
@@ -35,6 +36,7 @@ function midi_add_note(argument0, argument1, argument2, argument3, argument4) {
 	        midi_percamount += 1
 	    }
 	}
+	return n
 
 
 

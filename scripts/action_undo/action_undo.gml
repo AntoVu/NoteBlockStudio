@@ -27,6 +27,11 @@ function action_undo() {
 		}
 		case h_removeblock: {
 		    add_block(arg0, arg1, arg2, arg3, arg4, arg5, arg6)
+			if (is_real(arg7) && arg7 > 0) note_dur_set(arg0, arg1, arg7)
+			break
+		}
+		case h_changedur: {
+			if (arg0 < arraylength && arg1 < arrayheight && song_exists[arg0, arg1]) note_dur_set(arg0, arg1, arg3)
 			break
 		}
 		case h_changeblock: {

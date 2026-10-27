@@ -43,6 +43,7 @@ function add_block() {
 	song_vel[@ xx, yy] = vel
 	song_pan[@ xx, yy] = pan
 	song_pit[@ xx, yy] = pit
+	note_dur_set(xx, yy, 0)
 	song_played[@xx, yy] = 0
 	song_added[@ xx, yy] = 0
 	colamount[@ xx] += 1

@@ -82,6 +82,7 @@ function save_settings() {
 	ini_write_real_clean("midi_import", "name_patch",      w_midi_name_patch)
 	ini_write_real_clean("midi_import", "maxheight",       w_midi_maxheight)
 	ini_write_real_clean("midi_import", "enable_velocity", w_midi_vel)
+	ini_write_real_clean("midi_import", "note_lengths",    w_midi_durations)
 	ini_write_real_clean("midi_import", "tempo",           w_midi_tempo)
 	ini_write_real_clean("midi_import", "octave",          w_midi_octave)
 	ini_write_real_clean("midi_import", "precision",       w_midi_precision)

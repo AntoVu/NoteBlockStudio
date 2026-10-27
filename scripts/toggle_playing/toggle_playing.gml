@@ -44,7 +44,7 @@ function toggle_playing(argument0) {
 	                        }
 	                    }
 	                    if (a) {
-	                        if (song_ins[xx, b].loaded) play_sound(song_ins[xx, b], song_key[xx, b], c , d, e)
+	                        if (song_ins[xx, b].loaded) play_sound(song_ins[xx, b], song_key[xx, b], c , d, e, ticks_to_seconds(note_dur_get(xx, b)))
 							if (instrument_list[| ds_list_find_index(instrument_list, song_ins[xx, b])].name = "Tempo Changer") tempo = floor(abs(e)) / 15
 							if (instrument_list[| ds_list_find_index(instrument_list, song_ins[xx, b])].name = "Toggle Rainbow") {rainbowtoggle = !rainbowtoggle draw_accent_init()}
 	                        if (song_ins[xx, b].press) key_played[song_key[xx, b]] = current_time

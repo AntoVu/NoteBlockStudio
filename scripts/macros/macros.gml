@@ -33,6 +33,7 @@ function macros() {
 #macro restore_directory    backup_directory + "Restored\\"
 #macro downloaded_song_file temp_directory + "song.nbs"
 
+#macro h_changedur 13
 #macro h_stereoize 12
 #macro h_swaplayer 11
 #macro h_removelayer 10
@@ -99,6 +100,7 @@ function macros() {
 #macro w_setaccent 45
 #macro w_track_export 46
 #macro w_sound_import 47
+#macro w_setduration 48
 
 #macro br "\r\n"
 

@@ -30,6 +30,7 @@ function draw_window_midi_import() {
 	w_midi_maxheight = median(1, draw_dragvalue(1, x1 + 380, y1 + 52, w_midi_maxheight, 1), 20)
 	if (draw_checkbox(x1 + 260, y1 + 72, w_midi_octave, "Keep within octave range", "Whether to automatically transpose the notes\nto keep them within the 2 octave range.") && wmenu = 0) w_midi_octave=!w_midi_octave
 	if (draw_checkbox(x1 + 260, y1 + 92, w_midi_vel, "Read note velocity", "Whether to copy the volume data found\nin each MIDI note.") && wmenu = 0) w_midi_vel=!w_midi_vel
+	if (draw_checkbox(x1 + 260, y1 + 110, w_midi_durations, "Keep note lengths", "Whether to keep how long each MIDI note is held.\nHeld notes ring out for their full length in audio exports.\n(Doesn't affect Minecraft exports.)") && wmenu = 0) w_midi_durations=!w_midi_durations
 	
 	draw_text_dynamic(x1 + 470, y1 + 32 + 20, "Time precision")
 	popup_set_window(x1 + 470, y1 + 32 + 20, 100, 20, "How much to increase the spacing between each note,\nso that more notes can be placed in between.")
@@ -56,6 +57,7 @@ function draw_window_midi_import() {
 	w_midi_maxheight = median(1, draw_dragvalue(1, x1 + 420, y1 + 52, w_midi_maxheight, 1), 20)
 	if (draw_checkbox(x1 + 300, y1 + 72, w_midi_octave, "保持八度范围", "是否自动将音符转换到 2 八度限制内。") && wmenu = 0) w_midi_octave=!w_midi_octave
 	if (draw_checkbox(x1 + 300, y1 + 92, w_midi_vel, "导入音符音量", "是否将 MIDI 文件中音符音量应用到音符上。") && wmenu = 0) w_midi_vel=!w_midi_vel
+	if (draw_checkbox(x1 + 300, y1 + 110, w_midi_durations, "导入音符时长", "是否保留 MIDI 音符的时长。\n导出音频时，长音符会持续发声。\n（不影响 Minecraft 导出。）") && wmenu = 0) w_midi_durations=!w_midi_durations
 	
 	draw_text_dynamic(x1 + 470, y1 + 32 + 20, "精准度")
 	popup_set_window(x1 + 470, y1 + 32 + 20, 100, 20, "调整音符间的距离，以在中间放下更多音符。")

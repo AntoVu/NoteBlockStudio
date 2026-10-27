@@ -1,7 +1,7 @@
 function selection_remove(argument0, argument1, argument2, argument3, argument4, argument5) {
 	// selection_remove(x1, y1, x2, y2, all, undo)
 	// Removes the blocks within the given area from the selection.
-	var x1, y1, x2, y2, key, ins, a, b, c, sa, sb, vel, pan, pit;
+	var x1, y1, x2, y2, key, ins, a, b, c, sa, sb, vel, pan, pit, dur;
 	if (!argument4) {
 	    x1 = min(argument0, argument2)
 	    y1 = min(argument1, argument3)
@@ -39,9 +39,12 @@ function selection_remove(argument0, argument1, argument2, argument3, argument4,
 	                    vel = selection_vel[a, b]
 	                    pan = selection_pan[a, b]
 	                    pit = selection_pit[a, b]
+	                    dur = sel_dur_get(a, b)
 	                    sa = selection_x + a
 	                    sb = selection_y + b
 	                    add_block_select(sa, sb, ins, key, vel, pan, pit)
+	                    note_dur_set(sa, sb, dur)
+	                    sel_dur_set(a, b, 0)
 	                    selection_exists[@ a, b] = 0
 	                    selection_ins[@ a, b] = 0
 	                    selection_key[@ a, b] = 0
@@ -75,7 +78,10 @@ function selection_remove(argument0, argument1, argument2, argument3, argument4,
 	                        vel = selection_vel[sa, sb]
 	                        pan = selection_pan[sa, sb]
 	                        pit = selection_pit[sa, sb]
+	                        dur = sel_dur_get(sa, sb)
 	                        add_block_select(a, b, ins, key, vel, pan, pit)
+	                        note_dur_set(a, b, dur)
+	                        sel_dur_set(sa, sb, 0)
 	                        selection_exists[sa, sb] = 0
 	                        selection_ins[sa, sb] = 0
 	                        selection_key[sa, sb] = 0

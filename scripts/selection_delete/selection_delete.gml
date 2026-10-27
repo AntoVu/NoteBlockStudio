@@ -20,6 +20,7 @@ function selection_delete(argument0) {
 	                selection_vel[a, b] = 0
 	                selection_pan[a, b] = 0
 	                selection_pit[a, b] = 0
+	                sel_dur_set(a, b, 0)
 	                selection_played[a, b] = 0
 					if (theme = 3 && remove_effect && selection_x + a >= starta && selection_x + a < starta + totalcols && selection_y + b >= startb && selection_y + b < startb + totalrows) {
 						ani = create(obj_removeeff)
