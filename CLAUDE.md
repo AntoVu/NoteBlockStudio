@@ -17,6 +17,10 @@ minor bug fixes, and upstream development happens on the `development` branch.
   GameMaker IDE. The target runtime is **2022.6** (`gm_runtime_version` in `scripts/macros/macros.gml`, and the
   `.yyp` IDEVersion is 2022.6.1.x). The README's "2022.0.3 LTS" is out of date. 32-bit DLLs.
 - Git LFS is required: `ffmpeg.exe`, `ffprobe.exe` and the `extensions/pygml` DLLs/zips are LFS files.
+- **Installer build on this machine:** Create Executable → Package as Installer fails at the last step with
+  `Can't open script "C:\Users\Ant"`. GameMaker passes the `.nsi` path to makensis unquoted, and the path has
+  spaces. The compiled game is still in `%LOCALAPPDATA%\GameMakerStudio2\GMS2TEMP\<name>_VM`, so rerun the
+  `makensis.exe` command from the build log with every path quoted.
 - Debug output from a built exe: `datafiles/Launch Debug.bat` runs it with `-debugoutput debug.txt`.
 - Python export module (`datafiles/Data/Python`): the project lists 869 generated files under `Lib/`
   (gitignored), and the build fails without them. Generate them with Python 3.8.10 32-bit (exact version
