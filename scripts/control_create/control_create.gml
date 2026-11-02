@@ -25,6 +25,7 @@ function control_create() {
 	if (!isplayer) server_socket = network_create_server(network_socket_tcp, 30010, 1)
 	client_socket = -1
 	if (server_socket < 0 && !isplayer) {port_taken = 1; client_socket = network_create_socket(network_socket_tcp)}
+	mcp_bridge_init()
 	window_width = 0
 	window_height = 0
 	if (!isplayer) window_maximize()

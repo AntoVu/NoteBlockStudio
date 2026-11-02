@@ -1,4 +1,5 @@
 function control_networking(){
+	if (mcp_bridge_event()) return 0
 	if (async_load[? "type"] == network_type_data) {
 		var temp_buffer = async_load[? "buffer"];
 		var type = buffer_read(temp_buffer, buffer_u8)

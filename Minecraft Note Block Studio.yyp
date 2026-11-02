@@ -262,6 +262,7 @@
     {"id":{"name":"draw_window_macro_setvelocity","path":"scripts/draw_window_macro_setvelocity/draw_window_macro_setvelocity.yy",},"order":19,},
     {"id":{"name":"draw_window_macro_setduration","path":"scripts/draw_window_macro_setduration/draw_window_macro_setduration.yy",},"order":49,},
     {"id":{"name":"note_durations","path":"scripts/note_durations/note_durations.yy",},"order":49,},
+    {"id":{"name":"mcp_bridge","path":"scripts/mcp_bridge/mcp_bridge.yy",},"order":50,},
     {"id":{"name":"draw_window_macro_setpanning","path":"scripts/draw_window_macro_setpanning/draw_window_macro_setpanning.yy",},"order":20,},
     {"id":{"name":"draw_window_macro_setpitch","path":"scripts/draw_window_macro_setpitch/draw_window_macro_setpitch.yy",},"order":21,},
     {"id":{"name":"draw_window_macro_stereo","path":"scripts/draw_window_macro_stereo/draw_window_macro_stereo.yy",},"order":22,},

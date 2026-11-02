@@ -13,7 +13,7 @@ minor bug fixes, and upstream development happens on the `development` branch.
 
 ## Building and running
 
-- No CLI build, linter or test suite. The project (`Minecraft Note Block Studio.yyp`) is opened and built in the
+- No linter or test suite. The IDE is the normal build; a CLI build works too (see the NBS_MCP repo's `CLAUDE.md`). The project (`Minecraft Note Block Studio.yyp`) is opened and built in the
   GameMaker IDE. The target runtime is **2022.6** (`gm_runtime_version` in `scripts/macros/macros.gml`, and the
   `.yyp` IDEVersion is 2022.6.1.x). The README's "2022.0.3 LTS" is out of date. 32-bit DLLs.
 - Git LFS is required: `ffmpeg.exe`, `ffprobe.exe` and the `extensions/pygml` DLLs/zips are LFS files.
@@ -75,3 +75,6 @@ commit the project file changes that come with it.
   back to plain nbswave).
 - Settings go to `settings.ini` in `game_save_id` (`load_settings` / `save_settings`). Paths are the
   `*_directory` macros in `macros.gml`, written Windows-style (`\\`).
+- **MCP bridge** (`scripts/mcp_bridge`): one JSON command per line on local TCP port 30011, for the NBS_MCP server.
+  Connections from other addresses are dropped. Commands must never reach a blocking dialog. `open_song_nbs` skips
+  its missing-sounds question when `global.mcp_silent` is set.
