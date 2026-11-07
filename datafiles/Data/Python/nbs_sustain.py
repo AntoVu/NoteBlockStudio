@@ -64,8 +64,13 @@ VIBRATO_RAMP_MS = 350.0  # Vibrato fades in over this long after the attack
 STYLE_FADE = "fade"  # Rings out slowly: the sound's own decay, stretched
 STYLE_STEADY = "steady"  # Holds its level, with vibrato
 STYLE_DRUM = "drum"  # Never stretched
-STEADY_SOUNDS = {"flute.ogg", "didgeridoo.ogg", "bit.ogg"}
-DRUM_SOUNDS = {"bdrum.ogg", "sdrum.ogg", "click.ogg"}
+STEADY_SOUNDS = {
+    "flute.ogg", "didgeridoo.ogg", "bit.ogg",
+    # Real-instrument sounds (VSCO-2 CE)
+    "trumpet_sus.ogg", "horn_sus.ogg", "trombone_sus.ogg", "clarinet_sus.ogg", "violin_sus.ogg", "cello_sus.ogg",
+    "organ.ogg",
+}
+DRUM_SOUNDS = {"bdrum.ogg", "sdrum.ogg", "click.ogg", "snare_marching.ogg", "cymbal_crash.ogg"}
 
 
 # --------------------------------------------------------------------------

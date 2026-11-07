@@ -308,8 +308,10 @@ function draw_note_tail(xx, yy, ticks, alpha, sel, clip_l, clip_r) {
 /// @description How a sound behaves when held: "steady", "drum" or "fade". Matches nbs_sustain.sound_style.
 function sound_style(fn) {
 	var name = string_lower(filename_name(string_replace_all(fn, "/", "\\")))
-	if (name == "flute.ogg" || name == "didgeridoo.ogg" || name == "bit.ogg") return "steady"
-	if (name == "bdrum.ogg" || name == "sdrum.ogg" || name == "click.ogg") return "drum"
+	var steady = "|flute.ogg|didgeridoo.ogg|bit.ogg|trumpet_sus.ogg|horn_sus.ogg|trombone_sus.ogg|clarinet_sus.ogg|violin_sus.ogg|cello_sus.ogg|organ.ogg|"
+	var drum = "|bdrum.ogg|sdrum.ogg|click.ogg|snare_marching.ogg|cymbal_crash.ogg|"
+	if (string_pos("|" + name + "|", steady) > 0) return "steady"
+	if (string_pos("|" + name + "|", drum) > 0) return "drum"
 	return "fade"
 }
 

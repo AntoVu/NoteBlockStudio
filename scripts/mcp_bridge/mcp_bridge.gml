@@ -418,6 +418,42 @@ function mcp_cmd_get_notes(req) {
 }
 
 
+/// @function mcp_cmd_add_instrument(req)
+/// @description Adds a custom instrument from a sound already in the Sounds folder, without the file picker.
+/// Reuses an existing custom instrument with the same file and key.
+function mcp_cmd_add_instrument(req) {
+	var file = variable_struct_exists(req, "file") ? req.file : ""
+	if (!is_string(file) || file == "") throw "missing field: file"
+	file = string_replace_all(file, "\\", "/")
+	if (string_pos("..", file) > 0 || string_char_at(file, 2) == ":") throw "file must be a path inside the Sounds folder"
+	var ext = string_lower(filename_ext(file))
+	if (ext != ".ogg" && ext != ".wav" && ext != ".mp3") throw "file must be .ogg, .wav or .mp3"
+	if (!file_exists_lib(sounds_directory + string_replace_all(file, "/", "\\"))) throw "not in the Sounds folder (" + sounds_directory + "): " + file
+	var key = mcp_int(req, "key", 45, 0, 87)
+	var press = !variable_struct_exists(req, "press") || req.press == true
+	var name = variable_struct_exists(req, "name") ? string(req.name) : filename_change_ext(filename_name(file), "")
+	for (var i = first_custom_index; i < ds_list_size(instrument_list); i++) {
+		var e = instrument_list[| i]
+		if (e.user && string_lower(e.filename) == string_lower(file) && e.key == key) return { index: i, name: e.name, existing: true }
+	}
+	if (user_instruments >= 240) throw "too many custom instruments (240)"
+	var ins = new_instrument(name, file, true, press, key)
+	var ok = false
+	global.mcp_silent = true
+	with (ins) ok = instrument_load()
+	global.mcp_silent = false
+	if (!ok) {
+		user_instruments--
+		instance_destroy(ins)
+		throw "could not load " + file
+	}
+	ds_list_add(instrument_list, ins)
+	if (save_version < 5 && user_instruments > 18) save_version = nbs_version
+	changed = 1
+	return { index: ds_list_size(instrument_list) - 1, name: name, existing: false }
+}
+
+
 /// @function mcp_bridge_command(req)
 /// @description Runs a command and returns its reply struct. Errors are thrown as strings.
 function mcp_bridge_command(req) {
@@ -435,15 +471,19 @@ function mcp_bridge_command(req) {
 				layers: endb2,
 				notes: totalblocks,
 				playing: playing != 0,
-				marker: marker_pos
+				marker: marker_pos,
+				time_signature: timesignature,
+				sounds_folder: sounds_directory
 			}
 		case "instruments":
 			var list = []
 			for (var i = 0; i < ds_list_size(instrument_list); i++) {
 				var ins = instrument_list[| i]
-				list[i] = { index: i, name: ins.name, custom: ins.user ? true : false, loaded: ins.loaded ? true : false }
+				list[i] = { index: i, name: ins.name, file: ins.filename, custom: ins.user ? true : false, loaded: ins.loaded ? true : false }
 			}
 			return { instruments: list }
+		case "add_instrument":
+			return mcp_cmd_add_instrument(req)
 		case "add_notes":
 			return mcp_cmd_add_notes(req)
 		case "update_notes":
@@ -465,16 +505,18 @@ function mcp_bridge_command(req) {
 		case "snapshot":
 			// Same as the audio export: leaves filename and the unsaved flag alone
 			if (!save_song(temp_file, true)) throw "could not write snapshot"
-			return { path: temp_file }
+			return { path: temp_file, sounds_folder: sounds_directory }
 		case "set_song":
+			var ts = mcp_int(req, "time_signature", timesignature, 2, 8)
 			if (variable_struct_exists(req, "tempo")) {
 				if (!is_numeric(req.tempo) || req.tempo < 0.25 || req.tempo > 60) throw "tempo must be from 0.25 to 60"
 				tempo = req.tempo
 			}
+			timesignature = ts
 			if (variable_struct_exists(req, "name")) song_name = string(req.name)
 			if (variable_struct_exists(req, "author")) song_author = string(req.author)
 			changed = 1
-			return { tempo: tempo, name: song_name, author: song_author }
+			return { tempo: tempo, name: song_name, author: song_author, time_signature: timesignature }
 		case "set_layer":
 			var l = mcp_int(req, "layer", undefined, 0, 2000)
 			var vol = mcp_int(req, "volume", 0, 0, 100) // Range check; applied below only if given

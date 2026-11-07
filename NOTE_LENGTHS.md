@@ -25,7 +25,8 @@ patterns and the clip editor all keep lengths.
 **How a held note sounds:** the attack plays once, the middle of the sound is time-stretched
 (a phase vocoder, so the pitch stays put and nothing repeats), then the natural tail plays.
 It depends on the instrument:
-- Flute, didgeridoo and bit hold a steady level with a gentle vibrato (12 cents, 5.5 Hz).
+- Flute, didgeridoo and bit hold a steady level with a gentle vibrato (12 cents, 5.5 Hz). So do the bundled
+  sustained real-instrument sounds (`*_sus.ogg`, `organ.ogg`).
 - Drums (bass drum, snare, click) are never stretched.
 - Everything else, including custom sounds, rings out slowly (its own decay, stretched).
 

@@ -45,6 +45,10 @@ official Note Block Studio and other tools safely ignore, so songs still open ev
 Minecraft exports (schematics, data packs) ignore lengths. See [NOTE_LENGTHS.md](NOTE_LENGTHS.md) for how to use it
 and how it works.
 
+It also bundles real-instrument sounds for custom instruments (piano, organ, strings, brass, woodwinds, mallets,
+timpani, marching snare, crash cymbal) from [VSCO-2 Community Edition](https://github.com/sgossner/VSCO-2-CE)
+(CC0), each tuned to a single note. They're in `Data/Sounds`.
+
 It also includes a local command bridge (`scripts/mcp_bridge`) that lets a separate MCP server edit the open song.
 It only accepts connections from your own computer.
 
