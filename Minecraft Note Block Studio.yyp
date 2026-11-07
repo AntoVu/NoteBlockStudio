@@ -1615,7 +1615,6 @@
     {"CopyToMask":-1,"filePath":"datafiles/Data/Python/Lib/site-packages/numpy/_typing","resourceVersion":"1.0","name":"__init__.pyc","resourceType":"GMIncludedFile",},
     {"CopyToMask":-1,"filePath":"datafiles/Data","resourceVersion":"1.0","name":"changelog.txt","resourceType":"GMIncludedFile",},
     {"CopyToMask":-1,"filePath":"datafiles","resourceVersion":"1.0","name":"Launch Debug.bat","resourceType":"GMIncludedFile",},
-    {"CopyToMask":-1,"filePath":"datafiles/Data/Python/__pycache__","resourceVersion":"1.0","name":"nbs_sustain.cpython-38.pyc","resourceType":"GMIncludedFile",},
   ],
   "MetaData": {
     "IDEVersion": "2022.6.1.26",
