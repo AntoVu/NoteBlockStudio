@@ -297,6 +297,8 @@ function draw_note_tail(xx, yy, ticks, alpha, sel, clip_l, clip_r) {
 // ---------------------------------------------------------------------
 
 #macro HELD_RENDER_SECONDS 16
+#macro HELD_CACHE_VERSION 1 // Bump when the stretch in nbs_sustain.py changes, so old cached sounds are remade
+#macro held_cache_directory file_directory + "Held sounds\\"
 #macro HELD_VIBRATO_RATE 5.5
 #macro HELD_VIBRATO_DEPTH 0.00696 // 12 cents
 #macro HELD_VIBRATO_RAMP 0.35
@@ -319,21 +321,36 @@ function instrument_held_ensure(ins) {
 	if (!variable_instance_exists(ins, "held_state")) ins.held_state = 0
 	if (ins.held_state != 0) return (ins.held_state == 1)
 	ins.held_state = -1
-	if (global.held_python_off) return false
 
-	var src = file_directory + "held_in.raw", dst = file_directory + "held_out.raw"
-	buffer_save(ins.sound_buffer, src)
-	var res
-	global.held_skip_lag = true
-	try {
-		res = python_call_function("nbs_sustain", "render_held_raw", [src, dst, HELD_RENDER_SECONDS])
-	} catch (e) {
-		log("Held sound failed for " + ins.filename + ": " + string(e))
-		return false
-	}
-	if (!is_struct(res)) {
-		global.held_python_off = true // Extension not available: don't try again this session
-		return false
+	// Cached on disk by the sound's content, so each sound is only ever stretched once
+	var key = buffer_md5(ins.sound_buffer, 0, buffer_get_size(ins.sound_buffer)) + "_v" + string(HELD_CACHE_VERSION)
+	var dst = held_cache_directory + key + ".raw", fade_file = held_cache_directory + key + ".txt"
+	var fade = -1
+	if (file_exists(dst) && file_exists(fade_file)) {
+		var f = file_text_open_read(fade_file)
+		fade = real(file_text_read_string(f))
+		file_text_close(f)
+	} else {
+		if (global.held_python_off) return false
+		if (!directory_exists(held_cache_directory)) directory_create(held_cache_directory)
+		var src = file_directory + "held_in.raw"
+		buffer_save(ins.sound_buffer, src)
+		var res
+		global.held_skip_lag = true
+		try {
+			res = python_call_function("nbs_sustain", "render_held_raw", [src, dst, HELD_RENDER_SECONDS])
+		} catch (e) {
+			log("Held sound failed for " + ins.filename + ": " + string(e))
+			return false
+		}
+		if (!is_struct(res)) {
+			global.held_python_off = true // Extension not available: don't try again this session
+			return false
+		}
+		fade = res.fade
+		var f = file_text_open_write(fade_file)
+		file_text_write_string(f, string_format(fade, 1, 6))
+		file_text_close(f)
 	}
 
 	var tmp = buffer_load(dst)
@@ -342,7 +359,7 @@ function instrument_held_ensure(ins) {
 	buffer_copy(tmp, 0, buffer_get_size(tmp), ins.held_buffer, 0)
 	buffer_delete(tmp)
 	ins.held_sound = audio_create_buffer_sound(ins.held_buffer, buffer_s16, 44100, 0, buffer_get_size(ins.held_buffer), audio_stereo)
-	ins.held_fade = res.fade
+	ins.held_fade = fade
 	ins.held_state = 1
 	return true
 }

@@ -32,7 +32,9 @@ It depends on the instrument:
 **Preview vs. export:** the export stretches each held note to its exact length. The editor stretches
 each instrument's sound once (16 s at its base pitch, made by `nbs_sustain.render_held_raw` the first
 time it's needed, or when playback starts) and adds the vibrato or the fade while playing, so the end of
-a note can sound a little different. If the stretched sound can't be made, the editor loops the plain
+a note can sound a little different. Stretched sounds are cached in the `Held sounds` folder next to
+`settings.ini`, keyed by the sound's content, so each sound is only stretched once. Bump
+`HELD_CACHE_VERSION` in `scripts/note_durations` whenever the stretch changes. If the stretched sound can't be made, the editor loops the plain
 sound as before.
 
 ## File format (backward compatible)

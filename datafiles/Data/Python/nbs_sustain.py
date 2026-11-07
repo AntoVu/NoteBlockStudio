@@ -123,7 +123,12 @@ def sound_style(filename: str) -> str:
 def _envelope(mono: np.ndarray, frame_rate: int, ms: float = 10.0) -> np.ndarray:
     """RMS envelope with a `ms` window."""
     win = max(1, int(frame_rate * ms / 1000.0))
-    return np.sqrt(np.convolve(mono * mono, np.ones(win) / win, mode="same"))
+    # Moving average via a running sum (same result as np.convolve(..., mode="same"), much faster)
+    n = len(mono)
+    c = np.concatenate([np.zeros(1), np.cumsum(np.concatenate([mono * mono, np.zeros(win)]))])
+    hi = np.arange(n) + (win - 1) // 2 + 1
+    lo = np.maximum(hi - win, 0)
+    return np.sqrt(np.maximum(c[np.minimum(hi, n)] - c[np.minimum(lo, n)], 0.0) / win)
 
 
 def _split_points(mono: np.ndarray, frame_rate: int) -> Tuple[int, int]:
