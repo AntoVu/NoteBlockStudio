@@ -1,10 +1,12 @@
 function remove_emitters() {
 	
-	// Stop sustained (looping) notes once their duration is over, or when playback stops
+	// Stop sustained (looping) notes once their duration is over, or when playback stops.
+	// Notes previewed while stopped (s[8] false) just run out their time.
 	for (var si = ds_list_size(sustained_sounds) - 1; si >= 0; si--) {
 		var s = sustained_sounds[| si]
-		if (!playing || get_timer() >= s[1]) {
-			if (!s[2] && playing) {
+		var stop_now = !playing && (array_length(s) < 9 || s[8])
+		if (stop_now || get_timer() >= s[1]) {
+			if (!s[2] && !stop_now) {
 				// Fade out over a short release, then stop
 				audio_sound_gain(s[0], 0, 120)
 				sustained_sounds[| si] = [s[0], get_timer() + 130000, true]

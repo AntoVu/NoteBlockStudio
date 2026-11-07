@@ -28,14 +28,20 @@ function play_sound(argument0, argument1, argument2, argument3, argument4, susta
 
 	// Sustained note (only if it's longer than the sound itself): play the stretched sound,
 	// or loop the plain one if it couldn't be made. Drums play normally.
+	// "sustained" sounds always last the note's length (at least a tick): cut short if needed.
 	var natural_length = audio_sound_length(ins.sound) / (1 + 3 * (os_type = os_windows)) * (1/audio_emitter_get_pitch(emitter))
 	var style = sound_style(ins.filename)
+	var exact = (style == "sustained")
+	if (exact) {
+		style = "steady"
+		sustain = max(sustain, ticks_to_seconds(1))
+	}
 	var do_sustain = (sustain > natural_length && style != "drum")
 	var held = do_sustain && instrument_held_ensure(ins)
 	var inst = audio_play_sound_on(emitter, held ? ins.held_sound : ins.sound, do_sustain && !held, 0)
 	sounds++
-	// [instance, stop time (us), fading, start time (us), style ("" = plain loop), fade ratio, hold (s), note pitch]
-	if (do_sustain) ds_list_add(sustained_sounds, [inst, get_timer() + sustain * 1000000, false, get_timer(), held ? style : "", held ? ins.held_fade : 1, sustain, audio_emitter_get_pitch(emitter)])
+	// [instance, stop time (us), fading, start time (us), style ("" = plain), fade ratio, hold (s), note pitch, from playback]
+	if (do_sustain || exact) ds_list_add(sustained_sounds, [inst, get_timer() + sustain * 1000000, false, get_timer(), held ? style : "", held ? ins.held_fade : 1, sustain, audio_emitter_get_pitch(emitter), playing != 0])
 
 	//Schedule emitter to be deleted from memory
 	newemitter = ds_list_create()
@@ -43,6 +49,7 @@ function play_sound(argument0, argument1, argument2, argument3, argument4, susta
 	var length = audio_sound_length(ins.sound) / (1 + 3 * (os_type = os_windows)) * (1/audio_emitter_get_pitch(emitter))
 	if (do_sustain) length = sustain + 0.5
 	ds_list_add(newemitter, (get_timer() + length * 1000000)) //store moment at which the emitter should be removed
+	ds_list_add(newemitter, inst) // So pausing can fade it out
 	ds_list_add(emitters_to_remove, newemitter)
 	
 	} else {

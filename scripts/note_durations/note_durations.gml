@@ -305,12 +305,15 @@ function draw_note_tail(xx, yy, ticks, alpha, sel, clip_l, clip_r) {
 
 
 /// @function sound_style(filename)
-/// @description How a sound behaves when held: "steady", "drum" or "fade". Matches nbs_sustain.sound_style.
+/// @description How a sound behaves when held: "steady", "sustained", "drum" or "fade". Matches nbs_sustain.sound_style.
+/// "sustained" (long real-instrument recordings) holds like "steady", and the note's length also cuts it short.
 function sound_style(fn) {
 	var name = string_lower(filename_name(string_replace_all(fn, "/", "\\")))
-	var steady = "|flute.ogg|didgeridoo.ogg|bit.ogg|trumpet_sus.ogg|horn_sus.ogg|trombone_sus.ogg|clarinet_sus.ogg|violin_sus.ogg|cello_sus.ogg|organ.ogg|"
+	var steady = "|flute.ogg|didgeridoo.ogg|bit.ogg|"
+	var sustained = "|trumpet_sus.ogg|horn_sus.ogg|trombone_sus.ogg|clarinet_sus.ogg|violin_sus.ogg|cello_sus.ogg|organ.ogg|"
 	var drum = "|bdrum.ogg|sdrum.ogg|click.ogg|snare_marching.ogg|cymbal_crash.ogg|"
 	if (string_pos("|" + name + "|", steady) > 0) return "steady"
+	if (string_pos("|" + name + "|", sustained) > 0) return "sustained"
 	if (string_pos("|" + name + "|", drum) > 0) return "drum"
 	return "fade"
 }

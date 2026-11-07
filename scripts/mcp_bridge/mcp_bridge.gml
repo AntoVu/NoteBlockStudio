@@ -471,7 +471,7 @@ function mcp_bridge_command(req) {
 				layers: endb2,
 				notes: totalblocks,
 				playing: playing != 0,
-				marker: marker_pos,
+				marker: floor(marker_pos),
 				time_signature: timesignature,
 				sounds_folder: sounds_directory
 			}
@@ -479,7 +479,7 @@ function mcp_bridge_command(req) {
 			var list = []
 			for (var i = 0; i < ds_list_size(instrument_list); i++) {
 				var ins = instrument_list[| i]
-				list[i] = { index: i, name: ins.name, file: ins.filename, custom: ins.user ? true : false, loaded: ins.loaded ? true : false }
+				list[i] = { index: i, name: ins.name, file: ins.filename, key: ins.key, custom: ins.user ? true : false, loaded: ins.loaded ? true : false }
 			}
 			return { instruments: list }
 		case "add_instrument":
@@ -540,14 +540,14 @@ function mcp_bridge_command(req) {
 				playing = 0
 				toggle_playing(floor((rw - 278) / 32)) // Visible columns; totalcols is local to control_draw
 			}
-			return { marker: marker_pos }
+			return { marker: floor(marker_pos) }
 		case "stop":
 			if (playing != 0) toggle_playing(floor((rw - 278) / 32)) // Visible columns; totalcols is local to control_draw
-			return { marker: marker_pos }
+			return { marker: floor(marker_pos) }
 		case "seek":
 			marker_pos = mcp_int(req, "tick", undefined, 0, 31999)
 			marker_prevpos = marker_pos
-			return { marker: marker_pos }
+			return { marker: floor(marker_pos) }
 		case "undo":
 			var steps = mcp_int(req, "count", 1, 1, 10000)
 			var before = historypos

@@ -94,6 +94,20 @@ def test_style_lookup():
     assert ns.sound_style("sdrum.ogg") == ns.STYLE_DRUM
     assert ns.sound_style("harp.ogg") == ns.STYLE_FADE
     assert ns.sound_style("my_custom.wav") == ns.STYLE_FADE
+    assert ns.sound_style("trumpet_sus.ogg") == ns.STYLE_SUSTAINED
+    assert ns.sound_style("organ.ogg") == ns.STYLE_SUSTAINED
+
+
+def test_sustained_cut_short():
+    import pydub
+    x = np.repeat((8000 * np.sin(2 * np.pi * 440 * np.arange(SR * 3) / SR))[:, None], 2, axis=1)
+    sound = pydub.AudioSegment(x.astype("<i2").tobytes(), frame_rate=SR, sample_width=2, channels=2)
+    out = ns.cut_segment(sound, 500)
+    assert abs(len(out) - (500 + ns.RELEASE_MS)) <= 1, len(out)
+    y = np.array(out.get_array_of_samples(), dtype=float).reshape(-1, 2)
+    assert np.abs(y[int(0.4 * SR):int(0.5 * SR)]).max() > 7000  # Full level until the note ends
+    assert np.abs(y[-50:]).max() < 300  # Faded out by the end
+    assert ns.cut_segment(sound, 5000) is sound  # Longer than the sound: left to the stretch
 
 
 def test_stereo_pan_kept():

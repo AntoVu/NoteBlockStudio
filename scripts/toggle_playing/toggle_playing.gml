@@ -57,6 +57,13 @@ function toggle_playing(argument0) {
 	    }
 	} else {
 		timestoloop = real(loopmax)
+		// Pausing silences notes still ringing (held ones stop in remove_emitters)
+		if (os_type != os_macosx) {
+			for (var i = 0; i < ds_list_size(emitters_to_remove); i++) {
+				var em = emitters_to_remove[| i]
+				if (ds_list_size(em) > 2) audio_sound_gain(em[| 2], 0, 60)
+			}
+		}
 	}
 
 

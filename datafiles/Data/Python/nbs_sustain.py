@@ -23,7 +23,9 @@ wind-like sounds hold a steady level with a gentle vibrato, plucked and struck
 sounds slowly ring out, and drums are never stretched.
 
 Notes are only ever *extended*: if a sound is naturally longer than the note's
-duration it plays exactly like it does in vanilla Note Block Studio.
+duration it plays exactly like it does in vanilla Note Block Studio. The exception
+is the bundled long sustained recordings (STYLE_SUSTAINED): their length always
+follows the note's (at least one tick), cut short with a release when needed.
 
 Written for Python 3.8 + nbswave 0.4 (the versions bundled with NBS).
 """
@@ -64,12 +66,14 @@ VIBRATO_RAMP_MS = 350.0  # Vibrato fades in over this long after the attack
 STYLE_FADE = "fade"  # Rings out slowly: the sound's own decay, stretched
 STYLE_STEADY = "steady"  # Holds its level, with vibrato
 STYLE_DRUM = "drum"  # Never stretched
-STEADY_SOUNDS = {
-    "flute.ogg", "didgeridoo.ogg", "bit.ogg",
-    # Real-instrument sounds (VSCO-2 CE)
+STYLE_SUSTAINED = "sustained"  # Held like steady, but the note's length also cuts it short
+STEADY_SOUNDS = {"flute.ogg", "didgeridoo.ogg", "bit.ogg"}
+# Long real-instrument recordings (VSCO-2 CE)
+SUSTAINED_SOUNDS = {
     "trumpet_sus.ogg", "horn_sus.ogg", "trombone_sus.ogg", "clarinet_sus.ogg", "violin_sus.ogg", "cello_sus.ogg",
     "organ.ogg",
 }
+RELEASE_MS = 120  # Fade when a sustained sound is cut short (same as the editor)
 DRUM_SOUNDS = {"bdrum.ogg", "sdrum.ogg", "click.ogg", "snare_marching.ogg", "cymbal_crash.ogg"}
 
 
@@ -120,6 +124,8 @@ def sound_style(filename: str) -> str:
     name = filename.replace("\\", "/").rsplit("/", 1)[-1].lower()
     if name in STEADY_SOUNDS:
         return STYLE_STEADY
+    if name in SUSTAINED_SOUNDS:
+        return STYLE_SUSTAINED
     if name in DRUM_SOUNDS:
         return STYLE_DRUM
     return STYLE_FADE
@@ -294,6 +300,14 @@ def sustain_segment(sound: pydub.AudioSegment, hold_ms: float, style: str = STYL
     return sound._spawn(data)
 
 
+def cut_segment(sound: pydub.AudioSegment, hold_ms: float) -> pydub.AudioSegment:
+    """Play `sound` for `hold_ms`, then fade out over RELEASE_MS. Returns `sound` if it isn't longer than that."""
+    end = int(round(hold_ms)) + RELEASE_MS
+    if end >= len(sound):
+        return sound
+    return sound[:end].fade_out(RELEASE_MS)
+
+
 def render_held_raw(in_path, out_path, seconds: float = 16.0, frame_rate: int = 44100) -> dict:
     """Editor helper: stretch raw 16-bit stereo PCM to `seconds`, steady level, no vibrato.
 
@@ -436,14 +450,17 @@ class SustainSongRenderer(SongRenderer):
 
             to_play = sound
             duration = self._durations.get((note.tick, note.layer), 0)
-            if duration > 1:
-                hold_ms = self._hold_ms(note.tick, duration, tempo_segments)
-                if hold_ms > len(sound):
-                    cache_key = int(round(hold_ms))
-                    to_play = sustained_cache.get(cache_key)
-                    if to_play is None:
-                        to_play = sustain_segment(sound, hold_ms, style)
-                        sustained_cache[cache_key] = to_play
+            sustained = style == STYLE_SUSTAINED
+            if duration > 1 or sustained:
+                hold_ms = self._hold_ms(note.tick, max(duration, 1), tempo_segments)
+                cache_key = int(round(hold_ms))
+                to_play = sustained_cache.get(cache_key)
+                if to_play is None:
+                    if hold_ms > len(sound):
+                        to_play = sustain_segment(sound, hold_ms, STYLE_STEADY if sustained else style)
+                    else:
+                        to_play = cut_segment(sound, hold_ms) if sustained else sound
+                    sustained_cache[cache_key] = to_play
 
             mixer.overlay(to_play, position=pos)
 
