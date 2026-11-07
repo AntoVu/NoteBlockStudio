@@ -505,6 +505,7 @@ def render_audio(
     if layers is not None:
         keep = set(layers)
         song.notes = [n for n in song.notes if n.layer in keep]
+        durations = {k: v for k, v in durations.items() if k[1] in keep}
     renderer = SustainSongRenderer(song, durations, default_sound_path)
     renderer.load_instruments(custom_sound_path)
     renderer.mix_song(

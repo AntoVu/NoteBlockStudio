@@ -6,6 +6,7 @@
 
 #macro MCP_PORT 30011
 #macro MCP_MAX_LINE_BYTES 8388608
+#macro MCP_BRIDGE_VERSION 2 // Bump when commands or fields change, so the MCP can tell an old build
 
 
 /// @function mcp_bridge_init()
@@ -488,7 +489,9 @@ function mcp_bridge_command(req) {
 				playing: playing != 0,
 				marker: floor(marker_pos),
 				time_signature: timesignature,
-				sounds_folder: sounds_directory
+				master_volume: round(mastervol * 100),
+				sounds_folder: sounds_directory,
+				bridge_version: MCP_BRIDGE_VERSION
 			}
 		case "instruments":
 			var list = []
@@ -523,15 +526,21 @@ function mcp_bridge_command(req) {
 			return { path: temp_file, sounds_folder: sounds_directory }
 		case "set_song":
 			var ts = mcp_int(req, "time_signature", timesignature, 2, 8)
+			var mv = mcp_int(req, "master_volume", round(mastervol * 100), 0, 100)
 			if (variable_struct_exists(req, "tempo")) {
 				if (!is_numeric(req.tempo) || req.tempo < 0.25 || req.tempo > 60) throw "tempo must be from 0.25 to 60"
 				tempo = req.tempo
 			}
 			timesignature = ts
+			if (variable_struct_exists(req, "master_volume")) {
+				// An app setting, not part of the song: saved in settings.ini, not the .nbs
+				mastervol = mv / 100
+				save_settings()
+			}
 			if (variable_struct_exists(req, "name")) song_name = string(req.name)
 			if (variable_struct_exists(req, "author")) song_author = string(req.author)
-			changed = 1
-			return { tempo: tempo, name: song_name, author: song_author, time_signature: timesignature }
+			if (variable_struct_exists(req, "tempo") || variable_struct_exists(req, "time_signature") || variable_struct_exists(req, "name") || variable_struct_exists(req, "author")) changed = 1
+			return { tempo: tempo, name: song_name, author: song_author, time_signature: timesignature, master_volume: round(mastervol * 100) }
 		case "set_layer":
 			var l = mcp_int(req, "layer", undefined, 0, 2000)
 			var vol = mcp_int(req, "volume", 0, 0, 100) // Range check; applied below only if given

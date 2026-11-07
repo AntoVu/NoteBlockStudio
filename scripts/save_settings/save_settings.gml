@@ -19,6 +19,7 @@ function save_settings() {
 	ini_write_real_clean("preferences", "check_prerelease",   check_prerelease)
 	ini_write_real_clean("preferences", "show_welcome",       show_welcome)
 	ini_write_real_clean("preferences", "autosave",           autosave)
+	ini_write_real_clean("preferences", "master_volume",      mastervol)
 	ini_write_real_clean("preferences", "autosavemins",       autosavemins)
 	ini_write_real_clean("preferences", "theme",              theme)
 	ini_write_real_clean("preferences", "blackout",           blackout)
