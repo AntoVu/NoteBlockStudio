@@ -17,8 +17,9 @@ function remove_emitters() {
 			var t = (get_timer() - s[3]) / 1000000
 			if (s[4] == "steady") {
 				var vib = HELD_VIBRATO_DEPTH * min(1, t / HELD_VIBRATO_RAMP)
-				// On the emitter: a sound instance's own pitch replaces the note's pitch instead of scaling it
-				audio_emitter_pitch(s[7], s[8] * (1 + vib * sin(2 * pi * HELD_VIBRATO_RATE * t)))
+				// Full pitch on the instance: in this runtime an instance's pitch replaces the emitter's,
+				// and changing the emitter's pitch mid-sound squares it
+				audio_sound_pitch(s[0], s[7] * (1 + vib * sin(2 * pi * HELD_VIBRATO_RATE * t)))
 			} else {
 				audio_sound_gain(s[0], power(s[5], min(1, t / s[6])), 0)
 			}

@@ -34,8 +34,8 @@ function play_sound(argument0, argument1, argument2, argument3, argument4, susta
 	var held = do_sustain && instrument_held_ensure(ins)
 	var inst = audio_play_sound_on(emitter, held ? ins.held_sound : ins.sound, do_sustain && !held, 0)
 	sounds++
-	// [instance, stop time (us), fading, start time (us), style ("" = plain loop), fade ratio, hold (s), emitter, note pitch]
-	if (do_sustain) ds_list_add(sustained_sounds, [inst, get_timer() + sustain * 1000000, false, get_timer(), held ? style : "", held ? ins.held_fade : 1, sustain, emitter, audio_emitter_get_pitch(emitter)])
+	// [instance, stop time (us), fading, start time (us), style ("" = plain loop), fade ratio, hold (s), note pitch]
+	if (do_sustain) ds_list_add(sustained_sounds, [inst, get_timer() + sustain * 1000000, false, get_timer(), held ? style : "", held ? ins.held_fade : 1, sustain, audio_emitter_get_pitch(emitter)])
 
 	//Schedule emitter to be deleted from memory
 	newemitter = ds_list_create()
