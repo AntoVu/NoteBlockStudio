@@ -16,7 +16,22 @@ function mcp_bridge_init() {
 	mcp_rx_len = 0
 	global.mcp_silent = false
 	global.mcp_missing_sounds = ""
+	mcp_stop_tick = -1
 	if (!isplayer) mcp_server = network_create_server_raw(network_socket_tcp, MCP_PORT, 1)
+}
+
+
+/// @function mcp_bridge_step()
+/// @description Called every frame: ends playback started with play(to_tick) once it gets there.
+function mcp_bridge_step() {
+	if (mcp_stop_tick < 0) return 0
+	if (!playing) {
+		mcp_stop_tick = -1
+	} else if (marker_pos >= mcp_stop_tick) {
+		mcp_stop_tick = -1
+		toggle_playing(floor((rw - 278) / 32))
+	}
+	return 1
 }
 
 
@@ -521,6 +536,7 @@ function mcp_bridge_command(req) {
 			var l = mcp_int(req, "layer", undefined, 0, 2000)
 			var vol = mcp_int(req, "volume", 0, 0, 100) // Range check; applied below only if given
 			var ste = mcp_int(req, "stereo", 0, 0, 200)
+			if (mcp_bool(req, "mute") && mcp_bool(req, "solo")) throw "a layer can't be both muted and solo"
 			mcp_ensure_layer(l)
 			if (variable_struct_exists(req, "name")) {
 				layername[l] = string(req.name)
@@ -528,10 +544,22 @@ function mcp_bridge_command(req) {
 			}
 			if (variable_struct_exists(req, "volume")) layervol[l] = vol
 			if (variable_struct_exists(req, "stereo")) layerstereo[l] = ste
+			// Same as the layer's mute (lock) and solo buttons. A layer is normal (0), muted (1) or solo (2).
+			var mode = layerlock[l]
+			if (variable_struct_exists(req, "mute")) mode = mcp_bool(req, "mute") ? 1 : (mode == 1 ? 0 : mode)
+			if (variable_struct_exists(req, "solo")) mode = mcp_bool(req, "solo") ? 2 : (mode == 2 ? 0 : mode)
+			solostr = string_replace_all(solostr, "|" + string(l) + "|", "")
+			if (mode == 2) solostr += "|" + string(l) + "|"
+			layerlock[l] = mode
 			changed = 1
-			return { layer: l, name: layername[l], volume: layervol[l], stereo: layerstereo[l] }
+			return { layer: l, name: layername[l], volume: layervol[l], stereo: layerstereo[l], mute: layerlock[l] == 1, solo: layerlock[l] == 2 }
 		case "play":
 			var from = mcp_int(req, "from_tick", -1, -1, 31999)
+			mcp_stop_tick = mcp_int(req, "to_tick", -1, -1, 31999)
+			if (mcp_stop_tick >= 0 && mcp_stop_tick <= max(from, floor(marker_pos))) {
+				mcp_stop_tick = -1
+				throw "to_tick must be after the start"
+			}
 			if (from >= 0) {
 				marker_pos = from
 				marker_prevpos = from

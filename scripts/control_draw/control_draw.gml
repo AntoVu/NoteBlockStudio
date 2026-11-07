@@ -61,6 +61,7 @@ function control_draw() {
 	dndfile = file_dnd_get_files()
 
 	remove_emitters()
+	mcp_bridge_step()
 
 	if (selected = 0) {
 		if (block_outside = 0 && block_custom = 0) {

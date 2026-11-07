@@ -308,6 +308,19 @@ def cut_segment(sound: pydub.AudioSegment, hold_ms: float) -> pydub.AudioSegment
     return sound[:end].fade_out(RELEASE_MS)
 
 
+def trim_silence(seg: pydub.AudioSegment, floor_db: float = -60.0, keep_ms: int = 100) -> pydub.AudioSegment:
+    """Cut the silence at the end (below `floor_db` dBFS), keeping `keep_ms` after the last sound.
+
+    The mix is sized by each sound's full length, so cut-short and faded notes leave silence behind.
+    """
+    x = np.abs(np.array(seg.get_array_of_samples()))
+    loud = np.nonzero(x > (2 ** (8 * seg.sample_width - 1)) * 10 ** (floor_db / 20))[0]
+    if not len(loud):
+        return seg
+    end_ms = (loud[-1] // seg.channels) * 1000.0 / seg.frame_rate + keep_ms
+    return seg[:int(math.ceil(end_ms))] if end_ms < len(seg) else seg
+
+
 def render_held_raw(in_path, out_path, seconds: float = 16.0, frame_rate: int = 44100) -> dict:
     """Editor helper: stretch raw 16-bit stereo PCM to `seconds`, steady level, no vibrato.
 
@@ -464,7 +477,7 @@ class SustainSongRenderer(SongRenderer):
 
             mixer.overlay(to_play, position=pos)
 
-        return mixer.to_audio_segment()
+        return trim_silence(mixer.to_audio_segment())
 
 
 def render_audio(
@@ -480,14 +493,18 @@ def render_audio(
     target_size: Optional[int] = None,
     ignore_missing_instruments: bool = False,
     exclude_locked_layers: bool = False,
+    layers=None,
     **unused_kwargs
 ) -> int:
     """Drop-in replacement for nbswave.render_audio that plays note durations.
 
-    Returns the number of held notes found in the song.
+    `layers`: only render notes on these layers (for stems). Returns the number of held notes found in the song.
     """
     durations = read_durations(song_path)
     song = pynbs.read(song_path)
+    if layers is not None:
+        keep = set(layers)
+        song.notes = [n for n in song.notes if n.layer in keep]
     renderer = SustainSongRenderer(song, durations, default_sound_path)
     renderer.load_instruments(custom_sound_path)
     renderer.mix_song(

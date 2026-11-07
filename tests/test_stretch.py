@@ -110,6 +110,18 @@ def test_sustained_cut_short():
     assert ns.cut_segment(sound, 5000) is sound  # Longer than the sound: left to the stretch
 
 
+def test_trailing_silence_trimmed():
+    import pydub
+    x = np.zeros((SR * 3, 2))
+    x[:SR] = pluck(seconds=1.0)
+    x[SR:SR + 100] = 1.0  # A faint tail (below -60 dB) also counts as silence
+    seg = pydub.AudioSegment(x.astype("<i2").tobytes(), frame_rate=SR, sample_width=2, channels=2)
+    out = ns.trim_silence(seg)
+    assert 1000 <= len(out) <= 1100, len(out)
+    silent = pydub.AudioSegment(np.zeros((SR, 2)).astype("<i2").tobytes(), frame_rate=SR, sample_width=2, channels=2)
+    assert len(ns.trim_silence(silent)) == len(silent)  # Nothing to keep: leave it alone
+
+
 def test_stereo_pan_kept():
     x = pluck()
     x[:, 1] *= 0.25  # panned left
