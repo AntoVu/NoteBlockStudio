@@ -287,3 +287,88 @@ function draw_note_tail(xx, yy, ticks, alpha, sel, clip_l, clip_r) {
 	draw_theme_color()
 	return 1
 }
+
+
+// ---------------------------------------------------------------------
+// Held notes in the editor: the instrument's sound is stretched once by
+// nbs_sustain.render_held_raw (Python, same stretch as the audio export)
+// and played unlooped. Vibrato (steady sounds) and the slow fade (other
+// sounds) are applied while playing, in remove_emitters.
+// ---------------------------------------------------------------------
+
+#macro HELD_RENDER_SECONDS 16
+#macro HELD_VIBRATO_RATE 5.5
+#macro HELD_VIBRATO_DEPTH 0.00696 // 12 cents
+#macro HELD_VIBRATO_RAMP 0.35
+
+
+/// @function sound_style(filename)
+/// @description How a sound behaves when held: "steady", "drum" or "fade". Matches nbs_sustain.sound_style.
+function sound_style(fn) {
+	var name = string_lower(filename_name(string_replace_all(fn, "/", "\\")))
+	if (name == "flute.ogg" || name == "didgeridoo.ogg" || name == "bit.ogg") return "steady"
+	if (name == "bdrum.ogg" || name == "sdrum.ogg" || name == "click.ogg") return "drum"
+	return "fade"
+}
+
+
+/// @function instrument_held_ensure(ins)
+/// @description Makes sure ins.held_sound exists. Returns false if it can't be made (then the caller loops instead).
+/// Never shows a dialog: the MCP bridge can trigger playback.
+function instrument_held_ensure(ins) {
+	if (!variable_instance_exists(ins, "held_state")) ins.held_state = 0
+	if (ins.held_state != 0) return (ins.held_state == 1)
+	ins.held_state = -1
+	if (global.held_python_off) return false
+
+	var src = file_directory + "held_in.raw", dst = file_directory + "held_out.raw"
+	buffer_save(ins.sound_buffer, src)
+	var res
+	global.held_skip_lag = true
+	try {
+		res = python_call_function("nbs_sustain", "render_held_raw", [src, dst, HELD_RENDER_SECONDS])
+	} catch (e) {
+		log("Held sound failed for " + ins.filename + ": " + string(e))
+		return false
+	}
+	if (!is_struct(res)) {
+		global.held_python_off = true // Extension not available: don't try again this session
+		return false
+	}
+
+	var tmp = buffer_load(dst)
+	if (tmp < 0) return false
+	ins.held_buffer = buffer_create(buffer_get_size(tmp), buffer_fixed, 2)
+	buffer_copy(tmp, 0, buffer_get_size(tmp), ins.held_buffer, 0)
+	buffer_delete(tmp)
+	ins.held_sound = audio_create_buffer_sound(ins.held_buffer, buffer_s16, 44100, 0, buffer_get_size(ins.held_buffer), audio_stereo)
+	ins.held_fade = res.fade
+	ins.held_state = 1
+	return true
+}
+
+
+/// @function instrument_held_free(ins)
+function instrument_held_free(ins) {
+	if (variable_instance_exists(ins, "held_state") && ins.held_state == 1) {
+		audio_free_buffer_sound(ins.held_sound)
+		buffer_delete(ins.held_buffer)
+	}
+	ins.held_state = 0
+}
+
+
+/// @function held_prewarm()
+/// @description Makes the held sounds the song needs before playback starts, so playback doesn't stall later.
+function held_prewarm() {
+	for (var a = 0; a <= enda; a++) {
+		if (a < arraylength && colamount[a] > 0) {
+			for (var b = colfirst[a]; b <= collast[a]; b++) {
+				if (song_exists[a, b] && note_dur_get(a, b) > 1) {
+					var ins = song_ins[a, b]
+					if (ins.loaded && sound_style(ins.filename) != "drum") instrument_held_ensure(ins)
+				}
+			}
+		}
+	}
+}

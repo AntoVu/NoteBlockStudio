@@ -12,6 +12,15 @@ function remove_emitters() {
 				audio_stop_sound(s[0])
 				ds_list_delete(sustained_sounds, si)
 			}
+		} else if (!s[2] && array_length(s) > 4 && s[4] != "") {
+			// Stretched sound while held: vibrato for steady sounds, slow fade for the rest
+			var t = (get_timer() - s[3]) / 1000000
+			if (s[4] == "steady") {
+				var vib = HELD_VIBRATO_DEPTH * min(1, t / HELD_VIBRATO_RAMP)
+				audio_sound_pitch(s[0], 1 + vib * sin(2 * pi * HELD_VIBRATO_RATE * t))
+			} else {
+				audio_sound_gain(s[0], power(s[5], min(1, t / s[6])), 0)
+			}
 		}
 	}
 	

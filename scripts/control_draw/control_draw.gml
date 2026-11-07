@@ -4,8 +4,9 @@ function control_draw() {
 
 	var targetspeed = 1000000 / room_speed
 	currspeed = targetspeed / delta_time
-	if (1 / currspeed > 100.0) { // Cancel lag compensation if too much time has elapsed (i.e. dragging window, resizing etc.)
+	if (1 / currspeed > 100.0 || (global.held_skip_lag && 1 / currspeed > 3)) { // Cancel lag compensation if too much time has elapsed (i.e. dragging window, resizing, making a held sound)
 		currspeed = 1.0
+		global.held_skip_lag = false
 	}
 	
 	rw = floor(window_width * (1 / window_scale))

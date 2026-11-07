@@ -14,10 +14,13 @@ Every other NBS reader stops after the custom instruments, so the chunk is
 invisible to them.
 
 This module renders a song with nbswave, but stretches every note that has a
-duration: the attack of the sound is played normally, then a small part of the
-sound is looped seamlessly (pitch-period aligned, cross-faded and level
-compensated) until the note is released, and finally the sound's natural tail
-plays out with a short fade.
+duration: the attack of the sound plays normally, the middle is time-stretched
+(phase vocoder, so the pitch stays put and nothing repeats) until the note is
+released, and then the sound's natural tail plays.
+
+How the held part sounds depends on the instrument (see sound_style):
+wind-like sounds hold a steady level with a gentle vibrato, plucked and struck
+sounds slowly ring out, and drums are never stretched.
 
 Notes are only ever *extended*: if a sound is naturally longer than the note's
 duration it plays exactly like it does in vanilla Note Block Studio.
@@ -34,27 +37,35 @@ import pydub
 import pynbs
 
 from nbswave import audio, nbs
-from nbswave.main import MissingInstrumentException, SongRenderer
+from nbswave.main import DEFAULT_INSTRUMENTS, MissingInstrumentException, SongRenderer
 
 __all__ = [
     "read_durations",
     "parse_duration_chunk",
     "sustain_samples",
     "sustain_segment",
+    "sound_style",
+    "render_held_raw",
     "SustainSongRenderer",
     "render_audio",
 ]
 
 DURATION_MAGIC = b"DURS"
 
-# Tunables (all in milliseconds unless noted)
-DEFAULT_RELEASE_MS = 180.0  # Fade applied to the natural tail after a held note is released
-ATTACK_SKIP_MS = 25.0  # How far past the loudest point the loop may start
-MIN_LOOP_MS = 30.0  # Shortest loop we aim for on pitched sounds
-MAX_LOOP_MS = 90.0  # Longest loop we aim for on pitched sounds
-NOISE_SOURCE_MS = 150.0  # Longest stretch of an unpitched sound used as grain material
-NOISE_GRAIN_MS = 40.0  # Grain length for unpitched sounds
-MIN_PERIODICITY = 0.6  # Normalized autocorrelation needed to treat a sound as pitched
+# Tunables (milliseconds unless noted)
+XFADE_MS = 15.0  # Joins between attack, stretched middle and tail
+ATTACK_SKIP_MS = 25.0  # How far past the loudest point the stretched part may start
+STEADY_DROP_MS = 150.0  # Steady style: glide down to the tail's level at the end of the hold
+VIBRATO_RATE_HZ = 5.5
+VIBRATO_CENTS = 12.0
+VIBRATO_RAMP_MS = 350.0  # Vibrato fades in over this long after the attack
+
+# How each sound behaves while held (matched on file name, case ignored)
+STYLE_FADE = "fade"  # Rings out slowly: the sound's own decay, stretched
+STYLE_STEADY = "steady"  # Holds its level, with vibrato
+STYLE_DRUM = "drum"  # Never stretched
+STEADY_SOUNDS = {"flute.ogg", "didgeridoo.ogg", "bit.ogg"}
+DRUM_SOUNDS = {"bdrum.ogg", "sdrum.ogg", "click.ogg"}
 
 
 # --------------------------------------------------------------------------
@@ -99,239 +110,193 @@ def read_durations(song_path) -> Dict[Tuple[int, int], int]:
 # --------------------------------------------------------------------------
 
 
-def _envelope(mono: np.ndarray, frame_rate: int) -> np.ndarray:
-    """RMS envelope with a ~10 ms window."""
-    win = max(1, int(frame_rate * 0.01))
-    kernel = np.ones(win) / win
-    return np.sqrt(np.convolve(mono * mono, kernel, mode="same"))
+def sound_style(filename: str) -> str:
+    """STYLE_STEADY, STYLE_DRUM or STYLE_FADE for a sound file (path or name)."""
+    name = filename.replace("\\", "/").rsplit("/", 1)[-1].lower()
+    if name in STEADY_SOUNDS:
+        return STYLE_STEADY
+    if name in DRUM_SOUNDS:
+        return STYLE_DRUM
+    return STYLE_FADE
 
 
-def _find_period(mono: np.ndarray, frame_rate: int) -> Tuple[Optional[float], float]:
-    """Estimate the fundamental period (in samples) with a normalized autocorrelation.
+def _envelope(mono: np.ndarray, frame_rate: int, ms: float = 10.0) -> np.ndarray:
+    """RMS envelope with a `ms` window."""
+    win = max(1, int(frame_rate * ms / 1000.0))
+    return np.sqrt(np.convolve(mono * mono, np.ones(win) / win, mode="same"))
 
-    Returns (period or None, periodicity 0..1).
+
+def _split_points(mono: np.ndarray, frame_rate: int) -> Tuple[int, int]:
+    """(attack end, body end) from the loudness envelope. The body is what gets stretched."""
+    env = _envelope(mono, frame_rate)
+    peak = int(np.argmax(env))
+    audible = np.nonzero(env > env.max() * 0.1)[0]  # -20 dB
+    last = int(audible[-1]) if len(audible) else len(mono) - 1
+    a = peak + min(int(ATTACK_SKIP_MS / 1000.0 * frame_rate), max(0, (last - peak) // 6))
+    return a, max(last, a + 1)
+
+
+def _spectral_peaks(mag: np.ndarray) -> np.ndarray:
+    mid = mag[2:-2]
+    is_peak = (mid > mag[:-4]) & (mid > mag[1:-3]) & (mid >= mag[3:-1]) & (mid >= mag[4:])
+    return np.nonzero(is_peak)[0] + 2
+
+
+def _phase_vocoder(body: np.ndarray, n_out: int, want: int = 2048) -> np.ndarray:
+    """Read slowly through `body` to make `n_out` samples at the same pitch.
+
+    Phases are locked to the nearest spectral peak, which keeps the tone clear.
     """
-    n = len(mono)
-    if n < 64:
-        return None, 0.0
-    x = mono - mono.mean()
-    energy = float(np.dot(x, x))
-    if energy <= 1e-9:
-        return None, 0.0
-    size = 1 << int(math.ceil(math.log2(2 * n)))
-    spectrum = np.fft.rfft(x, size)
-    ac = np.fft.irfft(spectrum * np.conj(spectrum), size)[:n]
-    # Normalize by the overlap so long lags aren't penalised
-    ac = ac / (energy * (n - np.arange(n)) / n)
-
-    min_lag = max(3, int(frame_rate / 8000.0))  # up to ~8 kHz (very high notes)
-    max_lag = min(n // 2, int(frame_rate / 30.0))  # down to ~30 Hz
-    if max_lag <= min_lag + 2:
-        return None, 0.0
-    window = ac[min_lag:max_lag]
-
-    # Pick the first strong peak (avoids octave errors from picking a multiple)
-    best = int(np.argmax(window))
-    threshold = 0.9 * window[best]
-    lag = best
-    for i in range(1, len(window) - 1):
-        if window[i] >= threshold and window[i] >= window[i - 1] and window[i] >= window[i + 1]:
-            lag = i
-            break
-    lag += min_lag
-    strength = float(ac[lag])
-
-    # Parabolic interpolation for a sub-sample period
-    if 1 <= lag < n - 1:
-        y0, y1, y2 = ac[lag - 1], ac[lag], ac[lag + 1]
-        denom = y0 - 2 * y1 + y2
-        shift = 0.5 * (y0 - y2) / denom if abs(denom) > 1e-12 else 0.0
-        period = lag + float(np.clip(shift, -0.5, 0.5))
-    else:
-        period = float(lag)
-    return period, max(0.0, min(1.0, strength))
+    win = want
+    while win > len(body) and win > 256:
+        win //= 2
+    hop = win // 4
+    src = np.concatenate([body, np.zeros(max(0, win + hop - len(body)))])
+    w = np.hanning(win)
+    frames = int(math.ceil(n_out / float(hop))) + 2
+    pos = np.linspace(0, len(src) - win - hop, frames).astype(int)
+    out = np.zeros(frames * hop + win)
+    norm = np.zeros_like(out)
+    bins = np.arange(win // 2 + 1)
+    phase = None
+    for i, p in enumerate(pos):
+        x0 = np.fft.rfft(src[p:p + win] * w)
+        x1 = np.fft.rfft(src[p + hop:p + hop + win] * w)
+        mag = np.abs(x1)
+        ang0, ang1 = np.angle(x0), np.angle(x1)
+        if phase is None:
+            phase = ang1
+        else:
+            peaks = _spectral_peaks(mag)
+            if len(peaks):
+                idx = np.searchsorted(peaks, bins)
+                after = peaks[np.clip(idx, 0, len(peaks) - 1)]
+                before = peaks[np.clip(idx - 1, 0, len(peaks) - 1)]
+                near = np.where(np.abs(bins - before) < np.abs(after - bins), before, after)
+                phase = phase[near] + ang1[near] - ang0[near] + ang1 - ang1[near]
+            else:
+                phase = phase + ang1 - ang0
+        o = i * hop
+        out[o:o + win] += np.fft.irfft(mag * np.exp(1j * phase), win) * w
+        norm[o:o + win] += w * w
+    return (out / np.maximum(norm, 1e-6))[:n_out]
 
 
-def _choose_loop_length(period: float, frame_rate: int) -> int:
-    """Pick a whole number of periods (30-90 ms) whose length is closest to an integer sample count."""
-    lo = max(1, int(math.ceil(MIN_LOOP_MS / 1000.0 * frame_rate / period)))
-    hi = max(lo, int(MAX_LOOP_MS / 1000.0 * frame_rate / period))
-    best_k, best_err = lo, 1e9
-    for k in range(lo, hi + 1):
-        err = abs(k * period - round(k * period))
-        if err < best_err - 1e-6:
-            best_k, best_err = k, err
-    return int(round(best_k * period))
-
-
-def _release_tail(tail: np.ndarray, frame_rate: int, release_ms: float) -> np.ndarray:
-    """The natural tail of the sound, shortened to `release_ms` with a smooth fade."""
-    rel = int(max(0.0, release_ms) / 1000.0 * frame_rate)
-    tail = tail.copy()
-    if rel <= 0:
-        return tail[:0]
-    if tail.shape[0] > rel:
-        tail = tail[:rel]
-    if tail.shape[0] > 0:
-        fade = np.cos(np.linspace(0.0, math.pi / 2, tail.shape[0])) ** 2
-        tail = tail * fade[:, None]
-    return tail
-
-
-def _sustain_noise(
-    x: np.ndarray,
-    mono: np.ndarray,
-    frame_rate: int,
-    start: int,
-    target: int,
-    release_ms: float,
-) -> np.ndarray:
-    """Sustain an unpitched sound by overlap-adding random grains of it at a constant level."""
-    n, channels = x.shape
-    src_len = min(n - start, int(NOISE_SOURCE_MS / 1000.0 * frame_rate))
-    grain = min(int(NOISE_GRAIN_MS / 1000.0 * frame_rate), src_len)
-    grain -= grain % 2
-    if grain < 32:
+def _vibrato(x: np.ndarray, frame_rate: int, start: int) -> np.ndarray:
+    """Gentle pitch wobble from `start` on, fading in over VIBRATO_RAMP_MS."""
+    n = x.shape[0] - start
+    if n <= 1:
         return x
-    hop = grain // 2
-    release_point = start + src_len
+    t = np.arange(n) / float(frame_rate)
+    depth = (2 ** (VIBRATO_CENTS / 1200.0) - 1) * np.minimum(1.0, t / (VIBRATO_RAMP_MS / 1000.0))
+    speed = 1 + depth * np.sin(2 * math.pi * VIBRATO_RATE_HZ * t)
+    pos = np.minimum(np.cumsum(speed) - speed[0], n - 1)
+    y = x.copy()
+    for c in range(x.shape[1]):
+        y[start:, c] = np.interp(pos, np.arange(n), x[start:, c])
+    return y
 
-    # Flatten the source so every grain has the same loudness, then match the level at the release point
-    src = x[start:release_point]
-    src_env = _envelope(mono[start:release_point], frame_rate)
-    src = src / np.maximum(src_env, src_env.max() * 0.02 + 1e-9)[:, None]
-    edge = max(16, int(0.01 * frame_rate))
-    level = float(np.sqrt(np.mean(mono[release_point - edge: release_point] ** 2)))
 
-    # Overlap-add with a sine window (constant power at 50% overlap for uncorrelated grains)
-    xfade = min(hop, int(0.015 * frame_rate))
-    n_held = max(0, target - release_point) + 2 * xfade
-    window = np.sin(np.pi * (np.arange(grain) + 0.5) / grain)[:, None]
-    rng = np.random.default_rng(n_held + 7 * grain)
-    out = np.zeros((n_held + 2 * grain, channels))
-    max_offset = src.shape[0] - grain
-    pos = 0
-    while pos < out.shape[0] - grain:
-        offset = int(rng.integers(0, max_offset + 1)) if max_offset > 0 else 0
-        out[pos: pos + grain] += src[offset: offset + grain] * window
-        pos += hop
-    held = out[hop: hop + n_held] * level  # Skip the first half-grain, where only one grain sounds
+def _stretch(x: np.ndarray, frame_rate: int, target: int, style: str):
+    """Attack + stretched body (`target` samples in total) + natural tail.
 
-    # Equal-power cross-fades: natural start -> grains -> natural tail
-    up = np.sin(np.linspace(0.0, math.pi / 2, xfade))[:, None]
-    down = np.cos(np.linspace(0.0, math.pi / 2, xfade))[:, None]
-    head = x[:release_point].copy()
-    held[:xfade] = head[-xfade:] * down + held[:xfade] * up
-    head = head[:-xfade]
-    tail = _release_tail(x[release_point:], frame_rate, release_ms)
-    m = min(xfade, tail.shape[0])
-    if m > 0:
-        held[-m:] = held[-m:] * down[-m:] + tail[:m] * up[:m]
-        tail = tail[m:]
+    Returns (samples, attack end, fade ratio), or None if the sound can't be stretched.
+    The fade ratio is the body's level at its end relative to its start (the editor uses it).
+    """
+    if x.shape[0] < 32:
+        return None
+    mono = x.mean(axis=1)
+    if float(np.max(np.abs(mono))) <= 1e-9:
+        return None
+    a, b = _split_points(mono, frame_rate)
+    xf = max(16, min(int(XFADE_MS / 1000.0 * frame_rate), (b - a) // 3))
+    n_body = max(xf * 2, target - a)
+    raw = _phase_vocoder(mono[a:b], n_body)
+
+    # Put the stretched body on the level curve the style wants (levels in dB)
+    env = _envelope(mono, frame_rate, 20.0)
+    got = _envelope(raw, frame_rate, 30.0)
+    db_a, db_b = [20 * math.log10(max(float(env[i]), 1e-9)) for i in (a, b - 1)]
+    if style == STYLE_STEADY:
+        drop = int(STEADY_DROP_MS / 1000.0 * frame_rate)
+        want_db = np.full(n_body, db_a)
+        if n_body > drop:
+            want_db[-drop:] = np.linspace(db_a, db_b, drop)
     else:
-        held[-xfade:] *= down
-    return np.concatenate([head, held, tail], axis=0)
+        idx = np.linspace(a, b - 1, 200).astype(int)
+        curve = 20 * np.log10(np.maximum(env[idx], 1e-9))
+        want_db = np.interp(np.linspace(0.0, 1.0, n_body), np.linspace(0.0, 1.0, 200), curve)
+    mono_held = raw * (10 ** (want_db / 20) / np.maximum(got, got.max() * 0.02 + 1e-9))
+
+    # Stretch in mono, then restore each channel's share (keeps panning)
+    mono_rms = math.sqrt(float(np.mean(mono[a:b] ** 2))) + 1e-12
+    shares = np.sqrt(np.mean(x[a:b] ** 2, axis=0)) / mono_rms
+    held = mono_held[:, None] * shares[None, :]
+
+    # Equal-power joins: attack -> body -> natural tail
+    up = np.sin(np.linspace(0.0, math.pi / 2, xf))[:, None]
+    held[:xf] = x[a:a + xf] * up[::-1] + held[:xf] * up
+    tail = x[b:]
+    m = min(xf, tail.shape[0])
+    if m:
+        down = np.cos(np.linspace(0.0, math.pi / 2, m))[:, None]
+        held[-m:] = held[-m:] * down + tail[:m] * down[::-1]
+        tail = tail[m:]
+    fade = 10 ** ((db_b - db_a) / 20)
+    return np.concatenate([x[:a], held, tail], axis=0), a, fade
 
 
 def sustain_samples(
     x: np.ndarray,
     frame_rate: int,
     hold_ms: float,
-    release_ms: float = DEFAULT_RELEASE_MS,
+    style: str = STYLE_FADE,
+    vibrato: bool = False,
 ) -> np.ndarray:
     """Extend a sound so it is held for `hold_ms` milliseconds.
 
-    `x` is a float array of shape (frames, channels). Returns a new float array.
-    If the sound is already at least `hold_ms` long, it is returned unchanged.
+    `x` is a float array of shape (frames, channels). Returns a new float array,
+    or `x` itself if the sound is already long enough, silent, or a drum.
     """
-    n = x.shape[0]
     target = int(round(hold_ms * frame_rate / 1000.0))
-    if target <= n or n < 32:
+    if style == STYLE_DRUM or target <= x.shape[0]:
         return x
-
-    mono = x.mean(axis=1)
-    env = _envelope(mono, frame_rate)
-    peak_level = float(env.max())
-    if peak_level <= 1e-9:
-        return x  # Silent sound: nothing to sustain
-
-    peak = int(np.argmax(env))
-    # Loop start: just after the attack, but never so late that the sound has died out.
-    # Short (e.g. high-pitched) sounds get a proportionally shorter skip.
-    audible = np.nonzero(env > peak_level * 0.05)[0]
-    last_audible = int(audible[-1]) if len(audible) else n - 1
-    skip = min(int(ATTACK_SKIP_MS / 1000.0 * frame_rate), max(0, (last_audible - peak) // 6))
-    loop_start = min(peak + skip, max(peak, last_audible // 2))
-
-    available = n - loop_start
-    if available < int(0.01 * frame_rate):
-        loop_start = max(0, n - int(0.04 * frame_rate))
-        available = n - loop_start
-
-    # Pitched or noisy?
-    analysis = mono[loop_start: loop_start + min(available, int(0.1 * frame_rate))]
-    period, periodicity = _find_period(analysis, frame_rate)
-
-    if period is None or periodicity < MIN_PERIODICITY:
-        # Unpitched sound (noise, drums...): a short loop would buzz, so use grains instead
-        return _sustain_noise(x, mono, frame_rate, loop_start, target, release_ms)
-
-    loop_len = _choose_loop_length(period, frame_rate)
-    xfade = max(8, min(loop_len // 3, int(0.006 * frame_rate)))
-
-    # Make sure the loop (plus the cross-fade tail) fits inside the sound
-    if loop_start + loop_len + xfade > n:
-        loop_len = max(16, n - loop_start - xfade)
-        if loop_len > period:
-            loop_len = int(round(int(loop_len / period) * period)) or loop_len
-        xfade = max(4, min(xfade, loop_len // 3))
-    if loop_start + loop_len + xfade > n or loop_len < 16:
-        # Too little material to loop: hold the last part by stretching what we have
+    result = _stretch(x, frame_rate, target, style)
+    if result is None:
         return x
-
-    loop_end = loop_start + loop_len
-
-    # Level compensation: a decaying sound would "pump" when looped, so ramp the
-    # loop so its start matches the level at its end.
-    edge = max(4, loop_len // 5)
-    rms_start = float(np.sqrt(np.mean(mono[loop_start: loop_start + edge] ** 2)) + 1e-12)
-    rms_end = float(np.sqrt(np.mean(mono[loop_end - edge: loop_end] ** 2)) + 1e-12)
-    ratio = float(np.clip(rms_end / rms_start, 0.25, 4.0))
-    t = np.linspace(0.0, 1.0, loop_len)
-    gain = np.power(ratio, 1.0 - t)[:, None]  # ratio at the start of the loop -> 1 at the end
-
-    body = x[loop_start:loop_end] * gain
-    # Seamless wrap: the start of the loop fades in from what *follows* the loop end
-    ramp = (0.5 - 0.5 * np.cos(np.linspace(0.0, math.pi, xfade)))[:, None]
-    body[:xfade] = x[loop_end: loop_end + xfade] * (1.0 - ramp) + body[:xfade] * ramp
-
-    # Assemble: natural start, as many loops as needed, then the natural tail with a release fade
-    head = x[:loop_end]
-    remaining = max(0, target - head.shape[0])
-    repeats = int(math.ceil(remaining / float(loop_len)))
-    held = np.tile(body, (repeats, 1)) if repeats > 0 else np.zeros((0, x.shape[1]))
-
-    tail = _release_tail(x[loop_end:], frame_rate, release_ms)
-
-    return np.concatenate([head, held, tail], axis=0)
+    out, attack_end, _ = result
+    return _vibrato(out, frame_rate, attack_end) if vibrato else out
 
 
-def sustain_segment(
-    sound: pydub.AudioSegment, hold_ms: float, release_ms: float = DEFAULT_RELEASE_MS
-) -> pydub.AudioSegment:
-    """pydub wrapper around sustain_samples (16-bit sounds)."""
+def sustain_segment(sound: pydub.AudioSegment, hold_ms: float, style: str = STYLE_FADE) -> pydub.AudioSegment:
+    """pydub wrapper around sustain_samples. Steady sounds get vibrato."""
     if hold_ms <= len(sound):
         return sound
     channels = sound.channels
     samples = np.array(sound.get_array_of_samples(), dtype=np.float64)
     samples = samples.reshape(-1, channels)
-    out = sustain_samples(samples, sound.frame_rate, hold_ms, release_ms)
+    out = sustain_samples(samples, sound.frame_rate, hold_ms, style, vibrato=(style == STYLE_STEADY))
     if out is samples:
         return sound
     limit = float(2 ** (8 * sound.sample_width - 1) - 1)
     dtype = {1: np.int8, 2: np.int16, 4: np.int32}[sound.sample_width]
     data = np.clip(np.rint(out), -limit - 1, limit).astype(dtype).tobytes()
     return sound._spawn(data)
+
+
+def render_held_raw(in_path, out_path, seconds: float = 16.0, frame_rate: int = 44100) -> dict:
+    """Editor helper: stretch raw 16-bit stereo PCM to `seconds`, steady level, no vibrato.
+
+    The editor adds vibrato and the fade itself while playing; returns {"fade": ratio}
+    for that (body level at its end relative to its start).
+    """
+    x = np.fromfile(in_path, dtype="<i2").reshape(-1, 2).astype(np.float64)
+    result = _stretch(x, frame_rate, int(seconds * frame_rate), STYLE_STEADY)
+    if result is None:
+        raise ValueError("sound can't be stretched")
+    out, _, fade = result
+    np.clip(np.rint(out), -32768, 32767).astype("<i2").tofile(out_path)
+    return {"fade": fade}
 
 
 # --------------------------------------------------------------------------
@@ -347,17 +312,24 @@ class SustainSongRenderer(SongRenderer):
         song,
         durations: Dict[Tuple[int, int], int],
         default_sound_path=None,
-        release_ms: float = DEFAULT_RELEASE_MS,
     ):
         if default_sound_path is None:
             super().__init__(song)
         else:
             super().__init__(song, default_sound_path)
         self._durations = durations
-        self._release_ms = release_ms
+
+    def _style(self, ins: int) -> str:
+        """How instrument `ins` behaves when held (see sound_style)."""
+        first_custom = self._song.header.default_instruments
+        if ins < first_custom:
+            return sound_style(DEFAULT_INSTRUMENTS[ins]) if ins < len(DEFAULT_INSTRUMENTS) else STYLE_FADE
+        custom = self._song.instruments
+        i = ins - first_custom
+        return sound_style(custom[i].file) if i < len(custom) else STYLE_FADE
 
     def _hold_ms(self, tick: int, duration: int, tempo_segments: Sequence[float]) -> float:
-        """How long (ms) a note starting at `tick` is held, honouring tempo changes."""
+        """How long (ms) a note starting at `tick` is held, including tempo changes."""
         last = len(tempo_segments) - 1
         start = tempo_segments[min(tick, last)]
         end_tick = tick + duration
@@ -427,6 +399,7 @@ class SustainSongRenderer(SongRenderer):
                     continue
 
                 sound1 = audio.sync(sound1)
+                style = self._style(ins)
 
             if key != last_key:
                 last_vol = None
@@ -459,7 +432,7 @@ class SustainSongRenderer(SongRenderer):
                     cache_key = int(round(hold_ms))
                     to_play = sustained_cache.get(cache_key)
                     if to_play is None:
-                        to_play = sustain_segment(sound, hold_ms, self._release_ms)
+                        to_play = sustain_segment(sound, hold_ms, style)
                         sustained_cache[cache_key] = to_play
 
             mixer.overlay(to_play, position=pos)
@@ -480,16 +453,15 @@ def render_audio(
     target_size: Optional[int] = None,
     ignore_missing_instruments: bool = False,
     exclude_locked_layers: bool = False,
-    release_ms: float = DEFAULT_RELEASE_MS,
     **unused_kwargs
 ) -> int:
-    """Drop-in replacement for nbswave.render_audio that honours note durations.
+    """Drop-in replacement for nbswave.render_audio that plays note durations.
 
     Returns the number of held notes found in the song.
     """
     durations = read_durations(song_path)
     song = pynbs.read(song_path)
-    renderer = SustainSongRenderer(song, durations, default_sound_path, release_ms)
+    renderer = SustainSongRenderer(song, durations, default_sound_path)
     renderer.load_instruments(custom_sound_path)
     renderer.mix_song(
         ignore_missing_instruments,
@@ -539,13 +511,12 @@ def _main(argv=None):
     ap.add_argument("--sounds", required=True, help="Note Block Studio's sound folder (Data/Sounds)")
     ap.add_argument("--custom-sounds", help="folder with custom instrument sounds (default: same as --sounds)")
     ap.add_argument("--legato", action="store_true", help="ignore stored lengths and hold every note until the next one in its layer")
-    ap.add_argument("--release", type=float, default=DEFAULT_RELEASE_MS, help="release fade in ms (default %(default)s)")
     args = ap.parse_args(argv)
 
     fmt = args.output.rsplit(".", 1)[-1].lower()
     durations = legato_durations(args.song) if args.legato else read_durations(args.song)
     song = pynbs.read(args.song)
-    renderer = SustainSongRenderer(song, durations, args.sounds, args.release)
+    renderer = SustainSongRenderer(song, durations, args.sounds)
     renderer.load_instruments(args.custom_sounds or args.sounds)
     renderer.mix_song(ignore_missing_instruments=True).save(args.output, fmt)
     print("Rendered {} ({} held notes)".format(args.output, len(durations)))

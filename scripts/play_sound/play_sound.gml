@@ -26,12 +26,16 @@ function play_sound(argument0, argument1, argument2, argument3, argument4, susta
 	if (realstereo = 0) audio_emitter_position(emitter,pan,0,0)
 	else audio_emitter_position(emitter,100,0,0)
 
-	// Sustained note: loop the sound while the note is held (only if it's longer than the sound itself)
+	// Sustained note (only if it's longer than the sound itself): play the stretched sound,
+	// or loop the plain one if it couldn't be made. Drums play normally.
 	var natural_length = audio_sound_length(ins.sound) / (1 + 3 * (os_type = os_windows)) * (1/audio_emitter_get_pitch(emitter))
-	var do_sustain = (sustain > natural_length)
-	var inst = audio_play_sound_on(emitter,ins.sound, do_sustain, 0)
+	var style = sound_style(ins.filename)
+	var do_sustain = (sustain > natural_length && style != "drum")
+	var held = do_sustain && instrument_held_ensure(ins)
+	var inst = audio_play_sound_on(emitter, held ? ins.held_sound : ins.sound, do_sustain && !held, 0)
 	sounds++
-	if (do_sustain) ds_list_add(sustained_sounds, [inst, get_timer() + sustain * 1000000, false])
+	// [instance, stop time (us), fading, start time (us), style ("" = plain loop), fade ratio, hold (s)]
+	if (do_sustain) ds_list_add(sustained_sounds, [inst, get_timer() + sustain * 1000000, false, get_timer(), held ? style : "", held ? ins.held_fade : 1, sustain])
 
 	//Schedule emitter to be deleted from memory
 	newemitter = ds_list_create()

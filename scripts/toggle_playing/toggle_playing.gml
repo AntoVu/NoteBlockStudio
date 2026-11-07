@@ -3,6 +3,7 @@ function toggle_playing(argument0) {
 	var xx, a, b, c, d, e;
 	playing=!playing
 	if (playing = 1) {
+	    held_prewarm()
 	    if (marker_pos = enda + argument0) marker_pos = 0
 	    if (marker_start && section_exists) marker_pos = section_start
 	    if (marker_follow = 1) {

@@ -22,10 +22,18 @@ it plays exactly as before.
 Copy/paste, undo/redo, moving selections, expand/compress (lengths double/halve),
 patterns and the clip editor all keep lengths.
 
-**Preview vs. export:** in the editor, held notes are previewed by looping the sound and fading it out.
-That loop repeats the whole sample, so a plucked sound will "re-pluck" during preview.
-The audio **export** uses a proper sustain: the attack plays once, then a short, pitch-aligned piece
-of the sound loops seamlessly at a steady level, then the natural tail plays out with a short fade.
+**How a held note sounds:** the attack plays once, the middle of the sound is time-stretched
+(a phase vocoder, so the pitch stays put and nothing repeats), then the natural tail plays.
+It depends on the instrument:
+- Flute, didgeridoo and bit hold a steady level with a gentle vibrato (12 cents, 5.5 Hz).
+- Drums (bass drum, snare, click) are never stretched.
+- Everything else, including custom sounds, rings out slowly (its own decay, stretched).
+
+**Preview vs. export:** the export stretches each held note to its exact length. The editor stretches
+each instrument's sound once (16 s at its base pitch, made by `nbs_sustain.render_held_raw` the first
+time it's needed, or when playback starts) and adds the vibrato or the fade while playing, so the end of
+a note can sound a little different. If the stretched sound can't be made, the editor loops the plain
+sound as before.
 
 ## File format (backward compatible)
 
@@ -56,14 +64,17 @@ GameMaker (GML):
   `macro_reset`, `reset`, `control_create`, `action_undo/redo` (new `h_changedur` history entry).
 - Editor: `control_draw` (Alt+scroll, tails, Ctrl+Shift+L, menus), `selection_draw`, `menu_click`,
   `draw_windows`, `macros` (`w_setduration`, `h_changedur`).
-- Playback preview: `play_sound` (optional `sustain` seconds), `remove_emitters`, `toggle_playing`.
+- Playback preview: `play_sound` (optional `sustain` seconds), `remove_emitters` (stop, vibrato, fade),
+  `toggle_playing` (makes held sounds before playing), `instrument_free`, `control_draw` (no catch-up
+  after making a held sound).
 - MIDI import: `open_midi`, `midi_add_note`, `import_midi`, `reset_midi`, `draw_window_midi_import`,
   settings load/save (`note_lengths` under `[midi_import]`).
 - `save_song` / `open_song_nbs` write/read the chunk.
 
 Python (audio export):
 - `datafiles/Data/Python/nbs_sustain.py` *(new)* — reads lengths and renders held notes on top of
-  nbswave 0.4. Also usable from the command line (see below).
+  nbswave 0.4. Also usable from the command line (see below). `test_stretch.py` checks the stretch
+  (not shipped).
 - `datafiles/Data/Python/audio_export.py` — uses `nbs_sustain` (falls back to plain nbswave).
 - Registered as an included file in the `.yyp`.
 
@@ -84,3 +95,5 @@ python datafiles/Data/Python/nbs_sustain.py song.nbs out.wav --sounds "<NBS fold
 
 `--legato` holds every note until the next one in its layer, so you can hear the effect on any
 existing song. Without it, the lengths stored in the file are used.
+
+Stretch checks (on the 32-bit Python 3.8 with numpy): `python test_stretch.py` from `datafiles/Data/Python`.

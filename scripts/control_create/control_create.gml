@@ -502,7 +502,9 @@ function control_create() {
 	first_custom_index = ds_list_size(instrument_list)
 	user_instruments = 0
 	emitters_to_remove = ds_list_create()
-	sustained_sounds = ds_list_create() // [sound instance, stop time (us), fading]
+	sustained_sounds = ds_list_create() // See play_sound for the entry layout
+	global.held_python_off = false // Set if the Python extension can't make held sounds
+	global.held_skip_lag = false // Set after making a held sound, so playback doesn't jump ahead
 
 	// Initialize instruments
 	str = ""
