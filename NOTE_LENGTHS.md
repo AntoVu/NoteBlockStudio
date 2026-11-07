@@ -73,8 +73,8 @@ GameMaker (GML):
 
 Python (audio export):
 - `datafiles/Data/Python/nbs_sustain.py` *(new)* — reads lengths and renders held notes on top of
-  nbswave 0.4. Also usable from the command line (see below). `test_stretch.py` checks the stretch
-  (not shipped).
+  nbswave 0.4. Also usable from the command line (see below). `tests/test_stretch.py` checks the
+  stretch.
 - `datafiles/Data/Python/audio_export.py` — uses `nbs_sustain` (falls back to plain nbswave).
 - Registered as an included file in the `.yyp`.
 
@@ -96,4 +96,4 @@ python datafiles/Data/Python/nbs_sustain.py song.nbs out.wav --sounds "<NBS fold
 `--legato` holds every note until the next one in its layer, so you can hear the effect on any
 existing song. Without it, the lengths stored in the file are used.
 
-Stretch checks (on the 32-bit Python 3.8 with numpy): `python test_stretch.py` from `datafiles/Data/Python`.
+Stretch checks (on the 32-bit Python 3.8 with numpy): `python tests/test_stretch.py`.

@@ -1,11 +1,16 @@
-"""Checks for the held-note stretch in nbs_sustain.py. Run: python test_stretch.py"""
+"""Checks for the held-note stretch in nbs_sustain.py. Run: python tests/test_stretch.py
+
+Lives outside datafiles so GameMaker doesn't ship it.
+"""
 import os
+import sys
 import struct
 import tempfile
 
 import numpy as np
 
-import nbs_sustain as ns
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "datafiles", "Data", "Python"))
+import nbs_sustain as ns  # noqa: E402
 
 SR = 44100
 
